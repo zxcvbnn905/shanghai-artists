@@ -1,0 +1,106 @@
+#language-switch-wrapper {
+    position: relative;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    padding: 0;
+    transition: all 0.3s ease;
+}
+
+/* 原滑动开关样式，保留备用
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 32px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #C0A080;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 28px;
+    width: 28px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+input:checked + .slider {
+    background-color: #C0A080;
+}
+
+input:checked + .slider:before {
+    transform: translateX(28px);
+}
+
+.slider-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px;
+    box-sizing: border-box;
+    z-index: 2;
+}
+
+.slider-text::before, .slider-text::after {
+    font-size: 12px;
+    font-weight: 700;
+    transition: color 0.4s;
+    line-height: 1;
+    width: 28px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slider-text::before {
+    content: attr(data-off);
+    color: #C0A080;
+}
+
+.slider-text::after {
+    content: attr(data-on);
+    color: rgba(255, 255, 255, 0.8);
+}
+
+input:checked + .slider .slider-text::before {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+input:checked + .slider .slider-text::after {
+    color: #C0A080;
+}
+*/
+
+#language-switch-img {
+    display: block;
+    width: 54px;
+    height: 30px;
+    cursor: pointer;
+}

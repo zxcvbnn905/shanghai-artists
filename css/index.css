@@ -1,0 +1,753 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #fdfbf7;
+    background-image: url('../assets/others/loginBackground.jpg');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #3a3a3a;
+    z-index: 9998;
+    pointer-events: none;
+    will-change: transform;
+    transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.reveal::before {
+    transform: translateX(100%);
+}
+
+[v-cloak] { display: none; }
+
+#click-enter-app {
+    width: 100%;
+}
+
+#click-enter {
+    font-size: 32px;
+    color: #5a4b3d;
+    cursor: pointer;
+    user-select: none;
+    margin-left: 75%;
+    transform: translateX(-50%);
+    transition: color 0.3s ease;
+    letter-spacing: 4px;
+}
+
+#click-enter:hover {
+    color: #3d3028;
+}
+
+#language-switch-wrapper {
+    position: absolute;
+    bottom: 20px;
+    left: 35px;
+    top: auto;
+    right: auto;
+    z-index: 1000;
+}
+
+#loading-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(203,196,178,0.9);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px;
+    font-size: 32px; font-weight: bold; color: #333;
+    z-index: 1000; transition: opacity 0.3s; cursor: wait;
+}
+
+.loading-spinner {
+    width: 96px;
+    height: 96px;
+}
+
+@media (max-width: 1024px) {
+    #loading-overlay {
+        font-size: 20px;
+    }
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ========== 标题区 ========== */
+#title-hero {
+    position: fixed;
+    left: 75%;
+    transform: translate(-50%, -50%);
+    z-index: 60;
+    text-align: center;
+    pointer-events: none;
+    transition: top 0.25s ease;
+}
+
+.title-image {
+    max-width: 640px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+.title-subtitle {
+    margin: 12px 0 0 0;
+    font-size: 16px;
+    color: #000;
+    letter-spacing: 2px;
+}
+
+/* ========== 标题信息图标与信息框 ========== */
+.info-icon-wrap {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    pointer-events: auto; /* 关键：#title-hero 是 pointer-events:none */
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.info-icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: contain;
+    transform: translateY(-2px);
+}
+
+.info-tooltip {
+    position: absolute;
+    right: 100%; /* 位于图标左侧 */
+    margin-right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 430px;
+    max-width: 90vw;
+    background-image: url('../assets/others/informationBackground.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    color: #000;
+    text-align: left;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 44px 50px;
+    max-height: 75vh;
+    overflow: hidden;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity .25s, visibility .25s;
+    z-index: 999;
+}
+
+.info-tooltip-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (hover: hover) {
+    .info-tooltip {
+        max-height: none;
+        overflow: visible;
+        padding: 50px 44px 82px;
+        width: 440px;
+    }
+    .info-tooltip-scroll {
+        overflow: visible;
+    }
+}
+
+.info-team {
+    display: block;
+}
+
+body[data-lang="zh"] .info-team-en {
+    display: none;
+}
+
+body[data-lang="en"] .info-team-zh {
+    display: none;
+}
+
+.info-team-title {
+    display: block;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.info-team-lead {
+    display: block;
+    text-align: center;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.info-section {
+    margin-top: 14px;
+}
+
+.info-section-head {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.info-names {
+    display: grid;
+    gap: 4px 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    letter-spacing: normal;
+}
+
+body[data-lang="zh"] .info-names {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+body[data-lang="en"] .info-names {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.info-name-wide {
+    grid-column: span 2;
+    white-space: nowrap;
+}
+
+/* 名单只有一项时（如“合作单位”）：占满整行并居中 */
+.info-names > span:only-child {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+
+/* 桌面：hover 显示（hover 设备才生效，避免触屏粘滞 hover） */
+@media (hover: hover) {
+    .info-icon-wrap:hover .info-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+}
+
+/* 移动端：由 JS 切换 .visible */
+.info-icon-wrap.visible .info-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* ========== 密码门禁 ========== */
+#password-gate-app {
+    position: absolute;
+    right: 70px;
+    bottom: 60px;
+    margin: 0;
+    text-align: center;
+    transform: scale(0.75);
+    transform-origin: bottom right;
+}
+
+#password-panel {
+    position: relative;
+    width: 260px;
+    margin: 0 auto;
+    transition: opacity 0.4s ease;
+}
+
+.pw-bg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.pw-label {
+    font-size: 17px;
+    color: #441B07;
+    letter-spacing: 2px;
+    margin: -8px 0 12px 0;
+}
+
+.pw-row {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 22px;
+    display: flex;
+    gap: 6px;
+}
+
+.pw-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    -webkit-text-security: disc;
+    font-size: 14px;
+    color: #3a2a1a;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+
+
+.pw-input.error {
+    animation: shake 0.4s ease;
+}
+
+.pw-btn {
+    height: 24px;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+}
+
+.pw-btn:hover {
+    opacity: 1;
+}
+
+.pw-error {
+    text-align: center;
+    font-size: 16px;
+    color: #c44;
+    margin-top: 4px;
+}
+
+.pw-success {
+    font-size: 13px;
+    color: #5a7a4a;
+    text-align: center;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+}
+
+/* ========== 背景音乐切换按钮 ========== */
+#bgm-toggle {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 100;
+
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    transition: opacity 0.25s, transform 0.25s;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#bgm-toggle:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+#bgm-toggle:focus-visible {
+    opacity: 1;
+    outline: 2px solid rgba(141, 94, 60, 0.5);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* 音符图标 */
+#bgm-toggle .note-icon {
+    width: 28px;
+    height: 28px;
+    color: #4a3f35;
+    transform-origin: center center;
+    animation: note-rotate 3s linear infinite;
+    transition: opacity 0.3s;
+}
+
+/* 斜线图标（静音时显示） */
+#bgm-toggle .slash-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 28px;
+    height: 28px;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+/* 静音状态 */
+#bgm-toggle.muted .note-icon {
+    opacity: 0.3;
+    animation-play-state: paused;
+}
+
+#bgm-toggle.muted .slash-icon {
+    opacity: 1;
+}
+
+/* 旋转动画 */
+@keyframes note-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@media (max-width: 1100px) {
+    .title-image {
+        max-width: 45vw;
+    }
+
+    #title-hero {
+        left: 70%;
+    }
+}
+
+#rotate-hint {
+    display: none;
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+    #rotate-hint {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #CBC4B2;
+        z-index: 99999999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        gap: 20px;
+        font-size: 18px;
+        color: #5a4b3d;
+    }
+
+    #rotate-hint img {
+        width: 80px;
+        height: 80px;
+        animation: rotate-hint-bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes rotate-hint-bounce {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(90deg); }
+    }
+
+    body > :not(#rotate-hint) {
+        display: none !important;
+    }
+}
+
+/* ========== 项目介绍按钮 ========== */
+#about-button {
+    position: fixed;
+    bottom: 18px;
+    right: 18px;
+    z-index: 1900;
+    width: 220px;
+    height: 57px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: url('../assets/secret.png') no-repeat center / 80% 100%;
+    color: #4a3f35;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    opacity: 0.85;
+    transition: opacity 0.25s, transform 0.25s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#about-button:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+#about-button:focus-visible {
+    opacity: 1;
+    outline: 2px solid rgba(141, 94, 60, 0.5);
+    outline-offset: 2px;
+}
+
+/* ========== 项目介绍弹窗 ========== */
+#about-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 24px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+#about-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.about-panel {
+    --panel-w: min(1050px, calc(100vw - 48px), calc(89.25vh * 6013 / 4396));
+    position: relative;
+    width: var(--panel-w);
+    height: calc(var(--panel-w) * 4396 / 6013);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background-image: url('../assets/others/informationBackground_rot90.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    padding: 52px 70px 62px 82px;
+    color: #000;
+}
+
+#about-content.about-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.about-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding-right: 6px;
+    padding-bottom: 80px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+    pointer-events: none;
+}
+.about-slide.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* 页码圆点 */
+.about-dots {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    gap: 8px;
+}
+.about-dot {
+    width: 9px;
+    height: 9px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s, transform 0.2s;
+}
+.about-dot.active {
+    background: #4a3f35;
+    transform: scale(1.25);
+}
+
+#about-content h1 {
+    font-size: 22px;
+    text-align: center;
+    margin: 0 0 16px 0;
+    letter-spacing: 2px;
+    color: #3d3028;
+}
+
+#about-content h2 {
+    font-size: 17px;
+    margin: 22px 0 10px 0;
+    letter-spacing: 1px;
+    color: #3d3028;
+}
+
+#about-content h2:last-of-type {
+    text-align: center;
+}
+
+#about-content h3 {
+    font-size: 15px;
+    margin: 16px 0 6px 0;
+    color: #4a3f35;
+}
+
+#about-content p {
+    font-size: 14px;
+    line-height: 1.8;
+    margin: 0 0 10px 0;
+    text-align: justify;
+}
+
+/* 正文叙述段落：首行空两格缩进 */
+#about-content .about-body {
+    text-indent: 2em;
+}
+
+/* 团队名单网格：贴近首页信息按键的紧凑宽度 */
+#about-content .info-names {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+#about-content .info-section-head {
+    text-align: center;
+}
+
+#about-content .info-team-lead {
+    text-align: center;
+}
+
+#about-content ol {
+    margin: 0 0 12px 0;
+    padding-left: 22px;
+}
+
+#about-content li {
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 8px;
+    text-align: justify;
+}
+
+#about-content a {
+    color: #5a4b3d;
+}
+
+/* 弹窗关闭按钮 */
+#about-close {
+    position: absolute;
+    top: 1px;
+    right: 0px;
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    line-height: 1;
+    color: #7a6b5c;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.2s, transform 0.2s;
+}
+
+#about-close:hover {
+    color: #000;
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px), (max-height: 500px) {
+    #about-button {
+        font-size: 13px;
+        letter-spacing: 1px;
+    }
+
+    .about-panel {
+        padding: 34px 32px 40px;
+    }
+
+    #about-content h1 {
+        font-size: 18px;
+    }
+
+    #about-content p,
+    #about-content li {
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    /* 移动端：真正压缩密码输入区布局，为正文留空间 */
+    #password-gate-app {
+        margin: 0;
+        right: 45px;
+        bottom: 52px;
+        transform: none;
+    }
+
+    .about-slide {
+        padding-bottom: 55px;
+    }
+
+    .about-dots {
+        bottom: 35px;
+    }
+
+    #password-panel {
+        width: 160px;
+    }
+
+    .pw-label {
+        font-size: 13px;
+        margin: -4px 0 6px 0;
+    }
+
+    .pw-row {
+        bottom: 8px;
+        left: 12px;
+        right: 12px;
+    }
+
+    .pw-btn {
+        height: 18px;
+        transform: translateY(-2px);
+    }
+
+    .pw-input {
+        transform: translateY(-2px);
+    }
+
+    #about-close {
+        display: none;
+    }
+}
+

@@ -1,0 +1,54 @@
+#filter-list-container {
+    display: none;
+    max-height: 220px;
+    overflow-y: auto;
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+#filter-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+#filter-list li {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-radius: 12px;
+}
+
+#filter-list li:last-child {
+    border-bottom: none;
+}
+
+#filter-list li:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+#filter-list-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+#filter-list-container::-webkit-scrollbar-track {
+    margin: 10px 0 20px 0;
+    background: transparent;
+}
+
+#filter-list-container::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+#filter-list-container::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+}

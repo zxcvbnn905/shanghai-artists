@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer">
+    <title data-i18n-key="admin_title">Admin Panel</title>
+    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/auth.js"></script>
+
+    <link rel="stylesheet" href="css/customFont.css">
+    <link rel="stylesheet" href="css/languageSwitchStyle.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+
+<body data-lang="zh">
+    <!-- 语言切换 -->
+    <div id="vue-language-app">
+        <div id="admin-lang-switch">
+            <img id="language-switch-img" :src="langIconSrc" @click="toggleLanguage"
+                 :alt="isEnglish ? 'Switch to Chinese' : 'Switch to English'"
+                 :title="isEnglish ? '切换到中文' : 'Switch to English'">
+        </div>
+    </div>
+
+    <!-- 管理员面板 Vue 应用 -->
+    <div id="admin-app" v-cloak>
+        <!-- ========== 登录视图 ========== -->
+        <div id="admin-login-view" v-if="!isLoggedIn">
+            <div class="login-card">
+                <h2>{{ t('admin_login') }}</h2>
+                <label>{{ t('admin_username') }}</label>
+                <input type="text" v-model="loginUsername" @keyup.enter="doLogin">
+                <label>{{ t('admin_password') }}</label>
+                <input type="password" v-model="loginPassword" @keyup.enter="doLogin">
+                <button class="login-btn" @click="doLogin">{{ t('admin_login_btn') }}</button>
+                <div class="login-error" v-if="loginError">{{ loginError }}</div>
+            </div>
+        </div>
+
+        <!-- ========== 管理控制台视图 ========== -->
+        <div id="admin-dashboard-view" v-if="isLoggedIn">
+            <div class="admin-topbar">
+                <span class="topbar-title">{{ t('admin_title') }}</span>
+                <div class="topbar-right">
+                    <span class="user-info">{{ currentUser }} <template v-if="isSuperAdminUser">({{ t('admin_role_super') }})</template></span>
+                    <button class="logout-btn" @click="doLogout">{{ t('admin_logout') }}</button>
+                </div>
+            </div>
+
+            <div class="admin-content">
+                <!-- 1. 修改访问密码 -->
+                <div class="admin-card">
+                    <h3>{{ t('admin_section_access_pw') }}</h3>
+                    <p class="card-desc">{{ t('admin_access_pw_desc') }}</p>
+                    <div class="form-row">
+                        <input type="password" v-model="accessPw.newPw" :placeholder="t('admin_new_password')">
+                        <input type="password" v-model="accessPw.confirmPw" :placeholder="t('admin_confirm_password')">
+                        <button class="action-btn" @click="updateAccessPassword">{{ t('admin_update_btn') }}</button>
+                    </div>
+                    <div class="form-msg" :class="accessPw.msgType" v-if="accessPw.msg">{{ accessPw.msg }}</div>
+                </div>
+
+                <!-- 2. 修改我的密码 -->
+                <div class="admin-card">
+                    <h3>{{ t('admin_section_my_pw') }}</h3>
+                    <div class="form-row">
+                        <input type="password" v-model="myPw.currentPw" :placeholder="t('admin_current_password')">
+                        <input type="password" v-model="myPw.newPw" :placeholder="t('admin_new_password')">
+                        <input type="password" v-model="myPw.confirmPw" :placeholder="t('admin_confirm_password')">
+                        <button class="action-btn" @click="updateMyPassword">{{ t('admin_update_btn') }}</button>
+                    </div>
+                    <div class="form-msg" :class="myPw.msgType" v-if="myPw.msg">{{ myPw.msg }}</div>
+                </div>
+
+                <!-- 3. 管理管理员账户 -->
+                <div class="admin-card">
+                    <h3>{{ t('admin_section_manage') }}</h3>
+                    <p class="card-desc">{{ t('admin_manage_desc') }}</p>
+                    <table class="admin-table" v-if="adminList.length > 0">
+                        <thead>
+                            <tr>
+                                <th>{{ t('admin_username') }}</th>
+                                <th>{{ t('admin_role_super').charAt(0) === '超' ? '角色' : 'Role' }}</th>
+                                <th v-if="isSuperAdminUser"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="admin in adminList" :key="admin.username">
+                                <td>{{ admin.username }}</td>
+                                <td>
+                                    <span class="role-tag" :class="admin.role === 'super_admin' ? 'super' : 'normal'">
+                                        {{ admin.role === 'super_admin' ? t('admin_role_super') : t('admin_role_normal') }}
+                                    </span>
+                                </td>
+                                <td v-if="isSuperAdminUser">
+                                    <button class="delete-btn"
+                                        :disabled="admin.role === 'super_admin'"
+                                        @click="deleteAdmin(admin.username)">
+                                        {{ t('admin_delete') }}
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- 添加管理员 (仅超级管理员可见) -->
+                    <div class="add-admin-form" v-if="isSuperAdminUser">
+                        <div class="add-row">
+                            <div class="add-field">
+                                <label>{{ t('admin_username') }}</label>
+                                <input type="text" v-model="newAdmin.username">
+                            </div>
+                            <div class="add-field">
+                                <label>{{ t('admin_new_password') }}</label>
+                                <input type="password" v-model="newAdmin.password">
+                            </div>
+                            <div class="add-field">
+                                <label>{{ t('admin_confirm_password') }}</label>
+                                <input type="password" v-model="newAdmin.confirmPw">
+                            </div>
+                            <button class="add-btn" @click="addAdmin">{{ t('admin_create_btn') }}</button>
+                            <button class="cancel-btn" @click="cancelAddAdmin">{{ t('admin_cancel_btn') }}</button>
+                        </div>
+                        <div class="form-msg" :class="manageMsg.msgType" v-if="manageMsg.msg">{{ manageMsg.msg }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/languageControl.js"></script>
+    <script>
+    // ========== 管理员面板 Vue 应用 ==========
+    Vue.createApp({
+        setup() {
+            // ---- 登录 ----
+            const isLoggedIn = Vue.ref(false);
+            const currentUser = Vue.ref('');
+            const isSuperAdminUser = Vue.ref(false);
+            const loginUsername = Vue.ref('');
+            const loginPassword = Vue.ref('');
+            const loginError = Vue.ref('');
+            const token = Vue.ref('');
+
+            // ---- 访问密码修改 ----
+            const accessPw = Vue.reactive({ newPw: '', confirmPw: '', msg: '', msgType: '' });
+
+            // ---- 我的密码修改 ----
+            const myPw = Vue.reactive({ currentPw: '', newPw: '', confirmPw: '', msg: '', msgType: '' });
+
+            // ---- 管理员管理 ----
+            const adminList = Vue.ref([]);
+            const manageMsg = Vue.reactive({ msg: '', msgType: '' });
+            const newAdmin = Vue.reactive({ username: '', password: '', confirmPw: '' });
+
+            const t = (key) => {
+                void (window._i18nTick && window._i18nTick.n);
+                if (window.I18N && window.I18N.t) return window.I18N.t(key);
+                return window.t ? window.t(key) : key;
+            };
+
+            // 服务端在改密码 / 删管理员后会作废旧 token 并回发一张新 token：
+            // 拿到新 token 就更新本地；拿到 stale_token 说明本会话已失效，退回登录页。
+            const syncToken = (result) => {
+                if (result && result.token) {
+                    token.value = result.token;
+                }
+                if (result && result.error === 'stale_token') {
+                    window.AuthUtils.clearAdminSession();
+                    token.value = '';
+                    isLoggedIn.value = false;
+                    currentUser.value = '';
+                    isSuperAdminUser.value = false;
+                    adminList.value = [];
+                    loginError.value = t('admin_session_expired');
+                }
+                return result;
+            };
+
+            // ---- 登录 ----
+            const doLogin = async () => {
+                loginError.value = '';
+                if (!loginUsername.value || !loginPassword.value) {
+                    loginError.value = t('admin_login_error');
+                    return;
+                }
+                const result = await window.AuthUtils.adminLogin(loginUsername.value, loginPassword.value);
+                if (result.ok) {
+                    token.value = result.token;
+                    window.AuthUtils.setAdminSession(loginUsername.value, result.role, result.token);
+                    currentUser.value = loginUsername.value;
+                    isSuperAdminUser.value = result.role === 'super_admin';
+                    isLoggedIn.value = true;
+                    loginUsername.value = '';
+                    loginPassword.value = '';
+                    await loadAdminList();
+                } else {
+                    loginError.value = t('admin_login_error');
+                    loginPassword.value = '';
+                }
+            };
+
+            const doLogout = async () => {
+                if (token.value) {
+                    await window.AuthUtils.adminLogout(token.value);
+                }
+                window.AuthUtils.clearAdminSession();
+                token.value = '';
+                isLoggedIn.value = false;
+                currentUser.value = '';
+                isSuperAdminUser.value = false;
+                adminList.value = [];
+            };
+
+            // ---- 加载管理员列表 ----
+            const loadAdminList = async () => {
+                const result = syncToken(await window.AuthUtils.getAdminList(token.value));
+                if (result.ok) {
+                    adminList.value = result.admins;
+                }
+            };
+
+            // ---- 修改访问密码 ----
+            const updateAccessPassword = async () => {
+                accessPw.msg = '';
+                if (!accessPw.newPw || accessPw.newPw !== accessPw.confirmPw) {
+                    accessPw.msg = t('admin_password_mismatch');
+                    accessPw.msgType = 'error';
+                    return;
+                }
+                const result = syncToken(await window.AuthUtils.changeAccessPassword(token.value, accessPw.newPw));
+                if (result.ok) {
+                    accessPw.msg = t('admin_update_success');
+                    accessPw.msgType = 'success';
+                } else {
+                    accessPw.msg = result.error || 'Error';
+                    accessPw.msgType = 'error';
+                }
+                accessPw.newPw = '';
+                accessPw.confirmPw = '';
+                setTimeout(() => { accessPw.msg = ''; }, 3000);
+            };
+
+            // ---- 修改我的密码 ----
+            const updateMyPassword = async () => {
+                myPw.msg = '';
+                if (!myPw.currentPw || !myPw.newPw || !myPw.confirmPw) {
+                    myPw.msg = t('admin_password_mismatch');
+                    myPw.msgType = 'error';
+                    return;
+                }
+                if (myPw.newPw !== myPw.confirmPw) {
+                    myPw.msg = t('admin_password_mismatch');
+                    myPw.msgType = 'error';
+                    return;
+                }
+                const result = syncToken(await window.AuthUtils.changeAdminPassword(token.value, myPw.currentPw, myPw.newPw));
+                if (result.ok) {
+                    myPw.msg = t('admin_update_success');
+                    myPw.msgType = 'success';
+                } else if (result.error === 'wrong_current_password') {
+                    myPw.msg = t('admin_current_wrong');
+                    myPw.msgType = 'error';
+                } else {
+                    myPw.msg = result.error || 'Error';
+                    myPw.msgType = 'error';
+                }
+                myPw.currentPw = '';
+                myPw.newPw = '';
+                myPw.confirmPw = '';
+                setTimeout(() => { myPw.msg = ''; }, 3000);
+            };
+
+            // ---- 删除管理员 ----
+            const deleteAdmin = async (username) => {
+                if (username === 'admin') return;
+                manageMsg.msg = '';
+                const result = syncToken(await window.AuthUtils.deleteAdmin(token.value, username));
+                if (result.ok) {
+                    await loadAdminList();
+                    manageMsg.msg = t('admin_update_success');
+                    manageMsg.msgType = 'success';
+                } else {
+                    manageMsg.msg = t('admin_last_admin_warn');
+                    manageMsg.msgType = 'error';
+                }
+                setTimeout(() => { manageMsg.msg = ''; }, 3000);
+            };
+
+            // ---- 添加管理员 ----
+            const addAdmin = async () => {
+                manageMsg.msg = '';
+                if (!newAdmin.username || !newAdmin.password) return;
+                if (newAdmin.password !== newAdmin.confirmPw) {
+                    manageMsg.msg = t('admin_password_mismatch');
+                    manageMsg.msgType = 'error';
+                    return;
+                }
+                const result = syncToken(await window.AuthUtils.addAdmin(token.value, newAdmin.username, newAdmin.password));
+                if (result.ok) {
+                    await loadAdminList();
+                    manageMsg.msg = t('admin_update_success');
+                    manageMsg.msgType = 'success';
+                } else if (result.error === 'account_exists') {
+                    manageMsg.msg = t('admin_account_exists');
+                    manageMsg.msgType = 'error';
+                } else {
+                    manageMsg.msg = result.error || 'Error';
+                    manageMsg.msgType = 'error';
+                }
+                newAdmin.username = '';
+                newAdmin.password = '';
+                newAdmin.confirmPw = '';
+                setTimeout(() => { manageMsg.msg = ''; }, 3000);
+            };
+
+            const cancelAddAdmin = () => {
+                newAdmin.username = '';
+                newAdmin.password = '';
+                newAdmin.confirmPw = '';
+                manageMsg.msg = '';
+            };
+
+            // ---- 初始化 ----
+            const init = () => {
+                const session = window.AuthUtils.getAdminSession();
+                if (session && session.token) {
+                    token.value = session.token;
+                    currentUser.value = session.username;
+                    isSuperAdminUser.value = session.role === 'super_admin';
+                    isLoggedIn.value = true;
+                    loadAdminList();
+                }
+            };
+            init();
+
+            return {
+                isLoggedIn, currentUser, isSuperAdminUser,
+                loginUsername, loginPassword, loginError,
+                accessPw, myPw,
+                adminList, manageMsg, newAdmin,
+                t, doLogin, doLogout,
+                updateAccessPassword, updateMyPassword,
+                deleteAdmin, addAdmin, cancelAddAdmin
+            };
+        }
+    }).mount('#admin-app');
+    </script>
+</body>
+</html>

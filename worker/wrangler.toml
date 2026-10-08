@@ -1,0 +1,25 @@
+name = "shanghai-artist-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# 部署前把 ALLOWED_ORIGIN 改成你的 GitHub Pages 地址（多个用逗号分隔）
+# 例： "https://yourname.github.io,https://yourname.github.io/yourrepo"
+[vars]
+ALLOWED_ORIGIN = "https://YOUR_USER.github.io"
+ACCESS_TOKEN_TTL = "43200"   # 访问口令 token 有效期（秒）= 12 小时
+ADMIN_TOKEN_TTL = "28800"    # 管理员 token 有效期（秒）= 8 小时
+
+# 私有数据桶：wrangler r2 bucket create shanghai-artist-data
+[[r2_buckets]]
+binding = "DATA_BUCKET"
+bucket_name = "shanghai-artist-data"
+
+# 认证数据（auth.json 存这里）：wrangler kv namespace create AUTH_KV
+[[kv_namespaces]]
+binding = "AUTH_KV"
+id = "REPLACE_WITH_KV_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"
+
+# 密钥（不要写进本文件）：
+#   wrangler secret put TOKEN_SECRET
+#   wrangler secret put MAPBOX_TOKEN   # Mapbox 公开令牌，由 /api/verify-access 下发给前端

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#CBC4B2">
+    <meta name="referrer" content="no-referrer">
+    <link rel="manifest" href="manifest.json">
+    <title data-i18n-key="title">Shanghai Artist Map</title>
+    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/auth.js"></script>
+
+    <link rel="stylesheet" href="css/customFont.css">
+    <link rel="stylesheet" href="css/languageSwitchStyle.css">
+    <link rel="stylesheet" href="css/index.css">
+</head>
+
+<body data-lang="zh">
+    <div id="rotate-hint">
+        <img src="assets/others/rotatePhone.svg" alt="">
+        <p data-i18n-key="rotate_hint">旋转以获得最佳体验</p>
+    </div>
+    <script>sessionStorage.removeItem('artist_map_unlocked');</script>
+    <div id="map-wrapper">
+        <div id="map-container">
+            <div id="map" class="historical-map"></div>
+        </div>
+
+        <div id="vue-language-app">
+            <div id="language-switch-wrapper" class="index-language-switch">
+                <!-- 原滑动开关代码，保留备用
+                <label class="switch">
+                    <input type="checkbox" id="language-toggle" v-model="isEnglish">
+                    <span class="slider round"><span class="slider-text" data-on="EN" data-off="中"></span></span>
+                </label>
+                -->
+                <img id="language-switch-img" :src="langIconSrc" @click="toggleLanguage" :alt="isEnglish ? 'Switch to Chinese' : 'Switch to English'" :title="isEnglish ? '切换到中文' : 'Switch to English'">
+            </div>
+        </div>
+
+        <div id="stamp"></div>
+    </div>
+
+    <div id="title-hero">
+        <img src="assets/title.png" alt="Shanghai Artist Map" class="title-image">
+        <div class="title-subtitle">The Modern Art World of Shanghai:<br>Mapping Artists' Residences, 1912-1948
+            <!-- 信息框（暂时禁用）
+            <div class="info-icon-wrap" id="title-info" aria-haspopup="true">
+                <img class="info-icon" src="assets/others/information.svg" alt="info" aria-hidden="true">
+                <div class="info-tooltip" role="tooltip">
+                    <div class="info-tooltip-scroll">
+                        <div class="info-team info-team-zh">
+                            <div class="info-team-title">项目组成员名单</div>
+                            <div class="info-team-lead">项目负责人：郑洁</div>
+                            <div class="info-section">
+                                <div class="info-section-head">一、历史考证与研究</div>
+                                <div class="info-names">
+                                    <span>范　桢</span><span>李笑天</span><span>刘　月</span><span>宋　楠</span>
+                                    <span>赵苡吟</span><span>李春念</span><span>谢明阳</span><span>郑迪骏</span>
+                                    <span>葛文浩</span><span>陈凯洢</span><span>俞文清</span><span>赵朱依</span>
+                                    <span>赵芫怡</span><span class="info-name-wide">Krista Ibovi Ndolo Lyne</span><span>吴飞扬</span><span>刘晨曦</span>
+                                    <span>曾　予</span><span>徐姿琪</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">二、GIS</div>
+                                <div class="info-names">
+                                    <span>张佩瑶</span><span>何　捷</span><span>刘　月</span><span>郭晓敏</span>
+                                    <span>王超群</span><span>肖天意</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">三、互动式地图与网站建设</div>
+                                <div class="info-names">
+                                    <span>郭晓晨</span><span>沈熠恺</span><span>孙佳宁</span><span>李宁彦</span>
+                                    <span>王泉胜</span><span>李保庆</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">四、建筑测绘</div>
+                                <div class="info-names">
+                                    <span>刘　月</span><span>王祺凡</span><span>张娅琪</span><span>李宁彦</span>
+                                    <span>伍子覃</span><span>黎庆珊</span><span>刘汉添</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">五、支持</div>
+                                <div class="info-names">
+                                    <span>林　晖</span><span>梁元生</span><span>王海松</span><span>刘　勇</span>
+                                    <span>莫洪之</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="info-team info-team-en">
+                            <div class="info-team-title">Project Team Members</div>
+                            <div class="info-team-lead">Project Lead: Jane Zheng</div>
+                            <div class="info-section">
+                                <div class="info-section-head">I. Historical Research and Verification</div>
+                                <div class="info-names">
+                                    <span>Zhen Fan</span><span>Xiaotian Li</span><span>Yue Liu</span><span>Nan Song</span>
+                                    <span>Yiyin Zhao</span><span>Chunnian Li</span><span>Mingyang Xie</span><span>Dijun Zheng</span>
+                                    <span>Wenhao Ge</span><span>Kaiyi Chen</span><span>Wenqing Yu</span><span>Zhuyi Zhao</span>
+                                    <span>Yuanyi Zhao</span><span>Krista Ibovi Ndolo Lyne</span><span>Feiyang Wu</span><span>Chenxi Liu</span>
+                                    <span>Yu Zeng</span><span>Ziqi Xu</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">II. GIS</div>
+                                <div class="info-names">
+                                    <span>Sabrina P.Y. Zhang</span><span>Jie He</span><span>Yue Liu</span><span>Xiaomin Guo</span>
+                                    <span>Qunying Wang</span><span>Tianyi Xiao</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">III. Interactive Mapping and Website Development</div>
+                                <div class="info-names">
+                                    <span>Atlas Guo</span><span>Yikai Shen</span><span>Jianing Sun</span><span>Ningyan Li</span>
+                                    <span>Quansheng Wang</span><span>Bruce Li</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">IV. Architectural Survey and Documentation</div>
+                                <div class="info-names">
+                                    <span>Yue Liu</span><span>Qifan Wang</span><span>Yaqi Zhang</span><span>Ningyan Li</span>
+                                    <span>Ziqin Wu</span><span>Qingshan Li</span><span>Hantian Liu</span>
+                                </div>
+                            </div>
+                            <div class="info-section">
+                                <div class="info-section-head">V. Project Support</div>
+                                <div class="info-names">
+                                    <span>Hui Lin</span><span>Yuen-Sang Leung</span><span>Haisong Wang</span><span>Yong Liu</span>
+                                    <span>Hongzhi Mo</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            -->
+        </div>
+    </div>
+
+    <!-- 项目介绍按钮（右下角，开启/关闭弹窗） -->
+    <button id="about-button" type="button" data-i18n-key="about_button">项目介绍</button>
+
+    <!-- 背景音乐 -->
+    <audio id="bgm-audio" loop preload="auto" src="music/bgm.mp3"></audio>
+
+    <!-- 静音切换按钮 -->
+    <button id="bgm-toggle" class="muted" title="播放背景音乐" aria-label="播放背景音乐">
+        <svg viewBox="0 0 24 24" class="note-icon" fill="currentColor">
+            <ellipse cx="10" cy="16" rx="4.5" ry="3.2" transform="rotate(-15, 10, 16)" />
+            <line x1="13.5" y1="16" x2="13.5" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M 13.5 4 C 18.5 4, 20 8.5, 17 12.5 C 18 10, 16.5 7.5, 13.5 7.5 Z" fill="currentColor" />
+        </svg>
+        <svg viewBox="0 0 24 24" class="slash-icon">
+            <line x1="3" y1="3" x2="21" y2="21" stroke="#c44" stroke-width="2" stroke-linecap="round" />
+        </svg>
+    </button>
+
+    <div id="loading-overlay">
+            <img src="assets/others/loading.svg" alt="loading" class="loading-spinner">
+            <span>Loading...</span>
+        </div>
+
+    <!-- 项目介绍弹窗 -->
+    <div id="about-overlay" role="dialog" aria-modal="true" aria-labelledby="about-content">
+        <div class="about-panel">
+            <button id="about-close" type="button" aria-label="关闭弹窗">&times;</button>
+            <div id="about-content" class="about-scroll"></div>
+
+            <div id="about-dots" class="about-dots"></div>
+
+            <div id="password-gate-app" v-cloak>
+                <label class="pw-label">{{ t('password_label') }}</label>
+                <div id="password-panel">
+                    <img class="pw-bg" src="assets/secret.png" alt="">
+                    <div class="pw-row">
+                        <input type="text" v-model="password" class="pw-input"
+                               :class="{ error: showError }"
+                               @keyup.enter="checkPassword" ref="pwInput">
+                        <img class="pw-btn" src="assets/enter.svg" alt="" @click="checkPassword">
+                    </div>
+                </div>
+                <div class="pw-error" v-if="errorMsg">{{ errorMsg }}</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/languageControl.js"></script>
+    <script src="js/index.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+#filter-section {
+    position: relative;
+    margin-left: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px) saturate(180%);
+    border-radius: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    transition: all 0.3s ease;
+    width: 460px;
+    align-self: flex-start;
+    margin-top: 10px;
+}
+
+body[data-lang="en"] #filter-section {
+    width: 530px;
+}
+
+#top-left-controls {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 8px;
+    box-sizing: border-box;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    justify-content: space-between;
+}
+
+#top-left-controls:hover,
+#top-left-controls.expanded {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    border-radius: 25px;
+}
+
+#filter-container,
+#period-filter-container,
+#single-year-container {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+}
+
+.control-divider {
+    width: 1px;
+    height: 20px;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+#top-left-controls select,
+#top-left-controls input {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    border: none;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 6px;
+    outline: none;
+    font-size: 14px;
+    color: #333;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#top-left-controls select {
+    cursor: pointer;
+}
+
+#top-left-controls input[type="number"] {
+    width: 60px;
+}
+
+#top-left-controls label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+#reset-filters-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#reset-filters-button img {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s;
+}
+
+#reset-filters-button:hover img {
+    transform: scale(1.1);
+}
+
+#toggle-button-container {
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-top: none;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+#toggle-filter-list-button {
+    background-image: url('../assets/down_arrow.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 10px 10px;
+    width: 12px;
+    height: 12px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+#toggle-filter-list-button.up-arrow {
+    background-image: url('../assets/up_arrow.png');
+}
+
+@media (max-width: 768px), (max-height: 500px) {
+    #filter-section {
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+    }
+}

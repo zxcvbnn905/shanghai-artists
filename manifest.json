@@ -1,0 +1,16 @@
+{
+    "short_name": "Artist Map",
+    "name": "Shanghai Artist Map",
+    "icons": [
+        {
+            "src": "assets/others/stamp_CN.svg",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "start_url": "index.html",
+    "display": "standalone",
+    "orientation": "landscape",
+    "theme_color": "#CBC4B2",
+    "background_color": "#CBC4B2"
+}

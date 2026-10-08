@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_2" data-name="图层 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3.17 6.43">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #ff4200;
+        stroke-miterlimit: 10;
+        stroke-width: .1px;
+      }
+
+      .cls-2 {
+        opacity: .74;
+      }
+
+      .cls-3 {
+        fill: #fff48d;
+      }
+    </style>
+  </defs>
+  <g id="_图层_1-2" data-name="图层 1">
+    <g>
+      <g class="cls-2">
+        <polygon class="cls-3" points="2.38 6.38 2.38 3.04 3.09 3.03 1.58 .11 .08 3.04 .83 3.04 .84 6.38 2.38 6.38"/>
+      </g>
+      <g class="cls-2">
+        <polygon class="cls-1" points="2.38 6.38 2.38 3.04 3.09 3.03 1.58 .11 .08 3.04 .83 3.04 .84 6.38 2.38 6.38"/>
+      </g>
+    </g>
+  </g>
+</svg>

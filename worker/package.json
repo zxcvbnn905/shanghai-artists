@@ -1,0 +1,16 @@
+{
+  "name": "shanghai-artist-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "seed": "node scripts/seed-kv.mjs",
+    "seed:local": "node scripts/seed-kv.mjs --local"
+  },
+  "devDependencies": {
+    "bcryptjs": "^3.0.3",
+    "wrangler": "^4.0.0"
+  }
+}

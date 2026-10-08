@@ -1,0 +1,18 @@
+{
+  "name": "shanghai-artist-cloudbase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "腾讯云开发 CloudBase 后端（与 Cloudflare Worker 同一套 /api 与 /data 契约）",
+  "scripts": {
+    "login": "tcb login",
+    "env:list": "tcb env list",
+    "deploy:api": "tcb fn deploy api --force --install-dependency true",
+    "deploy:data": "tcb fn deploy data --force --install-dependency true",
+    "deploy:all": "tcb fn deploy --all --force --install-dependency true",
+    "upload:data": "node scripts/upload-data.mjs",
+    "seed:db": "node scripts/seed-db.mjs"
+  },
+  "devDependencies": {
+    "@cloudbase/cli": "^3.8.5"
+  }
+}

@@ -1,0 +1,137 @@
+/* 按属性显示：右下角图例（背景使用各属性文件夹下的 background.png） */
+
+#vue-legend-app[v-cloak] {
+    display: none; /* mainMap.html 未引入 index.css 的全局 v-cloak 规则，此处自带 */
+}
+
+#attr-legend {
+    position: absolute;
+    right: 12px;
+    bottom: 36px; /* 避开 mapbox 右下 attribution */
+    z-index: 900; /* 低于 #sidebar(1000)/#top-bar(2000)，高于地图 */
+    width: 180px;
+    background-size: 100% 100%; /* backgroundImage 由 Vue :style 按模式注入 */
+    background-repeat: no-repeat;
+    padding: 24px 26px; /* 背景图自带边框，内容整体内收 */
+    box-sizing: border-box;
+}
+
+.attr-legend-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #5a4a3a;
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+.attr-legend-items {
+    max-height: min(50vh, 420px);
+    overflow-y: auto;
+}
+
+.attr-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+}
+
+.attr-legend-icon {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    object-fit: contain;
+}
+
+.attr-legend-label {
+    font-size: 12px;
+    color: #5a4a3a;
+    white-space: nowrap;
+}
+
+.attr-legend-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* 性别单列 */
+}
+
+.attr-legend-divider {
+    border-top: 1px solid rgba(90, 74, 58, 0.35);
+    margin: 6px 0;
+}
+
+.attr-legend-group-title {
+    font-size: 12px;
+    font-weight: bold;
+    color: #8D5E3C;
+    margin: 2px 0;
+}
+
+/* 国籍：面板加宽（背景 533×1165，240px 宽对应自然高约 525px）、分栏内两列、标签可换行 */
+#attr-legend.legend-nationality {
+    width: 240px;
+}
+
+#attr-legend.legend-nationality .attr-legend-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 6px;
+}
+
+#attr-legend.legend-nationality .attr-legend-items {
+    max-height: min(66vh, 620px);
+}
+
+#attr-legend.legend-nationality .attr-legend-label {
+    white-space: normal;
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+/* 籍贯：背景 352×639，185px 宽对应自然高约 336px，与 10 项单列内容量吻合；英文组合名可换行 */
+#attr-legend.legend-origin {
+    width: 185px;
+}
+
+#attr-legend.legend-origin .attr-legend-label {
+    white-space: normal;
+    line-height: 1.25;
+}
+
+@media (max-width: 768px), (max-height: 500px) {
+    #attr-legend {
+        width: 140px;
+        padding: 16px 18px;
+        right: 6px;
+        bottom: 24px;
+    }
+
+    #attr-legend.legend-nationality {
+        width: 170px;
+    }
+
+    #attr-legend.legend-origin {
+        width: 140px;
+    }
+
+    .attr-legend-title {
+        font-size: 11px;
+    }
+
+    .attr-legend-label {
+        font-size: 10px;
+    }
+
+    .attr-legend-icon {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 18px;
+    }
+
+    .attr-legend-items {
+        max-height: min(35vh, 200px);
+    }
+
+    #attr-legend.legend-nationality .attr-legend-items {
+        max-height: min(40vh, 260px);
+    }
+}

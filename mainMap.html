@@ -1,0 +1,424 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#CBC4B2">
+    <meta name="referrer" content="no-referrer">
+    <link rel="manifest" href="manifest.json">
+    <title data-i18n-key="title">Shanghai Artist Map</title>
+    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet'/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="js/store.js"></script>
+
+    <link rel="stylesheet" href="css/customFont.css">
+    <link rel="stylesheet" href="css/languageSwitchStyle.css">
+    <link rel="stylesheet" href="css/leftControlBarStyle.css">
+    <link rel="stylesheet" href="css/attributeLegendStyle.css">
+    <link rel="stylesheet" href="css/mapStyle.css">
+    <link rel="stylesheet" href="css/mapSwitchStyle.css">
+    <link rel="stylesheet" href="css/popupWindowStyle.css">
+    <link rel="stylesheet" href="css/sidebarStyle.css">
+    <link rel="stylesheet" href="css/searchStyle.css">
+</head>
+
+<body data-lang="zh" style="display:none">
+    <script>
+        (function(){
+            var fromIndex = sessionStorage.getItem('artist_map_unlocked');
+            var active = sessionStorage.getItem('artist_map_active');
+            if (fromIndex === 'true') {
+                // 首次从 index 跳转过来，消费一次性令牌，设活跃标记
+                sessionStorage.removeItem('artist_map_unlocked');
+                sessionStorage.setItem('artist_map_active', 'true');
+                document.body.style.display = '';
+            } else if (active === 'true') {
+                // 同会话内刷新，放行
+                document.body.style.display = '';
+            } else {
+                // 无有效令牌 → 回 index
+                location.replace('index.html');
+            }
+        })();
+    </script>
+    <div id="rotate-hint">
+        <img src="assets/others/rotatePhone.svg" alt="">
+        <p data-i18n-key="rotate_hint">请旋转手机以获得最佳体验</p>
+    </div>
+    <div id="main-map-loader" style="display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(203, 196, 178, 0.9); z-index: 2147483647; justify-content: center; align-items: center; flex-direction: column; gap: 12px; font-size: 32px; font-weight: bold; color: #333; cursor: wait;">
+        <img src="assets/others/loading.svg" alt="loading" style="width: 96px; height: 96px;">
+        <div data-i18n-key="loading_data">Loading...</div>
+    </div>
+    <div id="top-bar">
+        <div class="top-bar-left">
+            <div data-i18n-key="title" style="font-weight: bold; font-size: 20px; white-space: nowrap;">Shanghai Artist Map</div>
+        </div>
+        <div class="top-bar-right">
+            <div id="vue-map-switch-app" v-cloak>
+                <div id="map-switch-wrapper">
+                    <button class="map-option" :class="{ active: GlobalStore.currentStyle === 'map_1' }" @click="switchStyle('map_1')" data-style="map_1">{{ t('map_1') }}</button>
+                    <button class="map-option" :class="{ active: GlobalStore.currentStyle === 'map_2' }" @click="switchStyle('map_2')" data-style="map_2">{{ t('map_2') }}</button>
+                    <button class="map-option" :class="{ active: GlobalStore.currentStyle === 'map_3' }" @click="switchStyle('map_3')" data-style="map_3">{{ t('map_3') }}</button>
+                </div>
+            </div>
+            <div id="vue-language-app">
+                <div id="language-switch-wrapper">
+                    <!-- 原滑动开关代码，保留备用
+                    <label class="switch">
+                        <input type="checkbox" id="language-toggle" v-model="isEnglish">
+                        <span class="slider round"><span class="slider-text" data-on="EN" data-off="中"></span></span>
+                    </label>
+                    -->
+                    <img id="language-switch-img" :src="langIconSrc" @click="toggleLanguage" :alt="isEnglish ? 'Switch to Chinese' : 'Switch to English'" :title="isEnglish ? '切换到中文' : 'Switch to English'">
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div id="vue-sidebar-app">
+        <div id="left-control-bar" :class="{ active: GlobalStore.isLeftPanelOpen }">
+            <div id="left-control-bar-content">
+                <div class="left-panel-header">
+                    <h3 data-i18n-key="settings_title">Display Settings</h3>
+                    <button class="close-panel-btn" @click="closePanel">
+                        <img src="assets/arrow.svg" alt="Close">
+                    </button>
+                </div>
+
+                <!-- 图层切换按钮（3个互斥单选） -->
+                <div class="layer-toggle-group">
+                    <button class="layer-toggle-btn" :class="{ active: GlobalStore.activeLayerMode === 'position' }"
+                            @click="setLayerMode('position')">
+                        <img src="assets/others/choiceLocation.svg" alt="">
+                        {{ t('layer_position') }}
+                    </button>
+                    <button class="layer-toggle-btn" :class="{ active: GlobalStore.activeLayerMode === 'social' }"
+                            @click="setLayerMode('social')" :disabled="isSocialDisabled">
+                        <img src="assets/others/choiceRelationship.svg" alt="">
+                        {{ t('layer_social') }}
+                    </button>
+                    <button class="layer-toggle-btn" :class="{ active: GlobalStore.activeLayerMode === 'density' }"
+                            @click="setLayerMode('density')" :disabled="isDensityDisabled || isDensityHidden">
+                        <img src="assets/others/choiceDensity.svg" alt="">
+                        {{ t('layer_density') }}
+                    </button>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- Filter 1: 起始年份 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('start_year') }}</label>
+                    <select v-model="startYear" @change="onStartYearChange" class="filter-select">
+                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                </div>
+
+                <!-- Filter 2: 结束年份 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('end_year') }}</label>
+                    <select v-model="endYear" @change="onEndYearChange" class="filter-select">
+                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                    </select>
+                </div>
+
+                <!-- Filter 2: 国籍 + 按国籍显示 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('nationality') }}</label>
+                    <select v-model="filters.Natl" @change="onFilterChange" class="filter-select" :disabled="isNatlDisabled">
+                        <option value="all">{{ t('all_natl') }}</option>
+                        <option v-for="opt in natlOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                    <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'nationality' }"
+                            @click="toggleAttrDisplay('nationality')">{{ t('display_by_nationality') }}</button>
+                </div>
+
+                <!-- Filter 3: 籍贯 + 按籍贯显示 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('filter_origin') }}</label>
+                    <select v-model="filters.Origin" @change="onFilterChange" class="filter-select" :disabled="isOriginDisabled">
+                        <option value="all">{{ t('all_origin') }}</option>
+                        <option v-for="opt in originOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                    <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'origin' }"
+                            @click="toggleAttrDisplay('origin')" :disabled="isOriginDisabled">{{ t('display_by_origin') }}</button>
+                </div>
+
+                <!-- Filter 4: 性别 + 按性别显示 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('sex') }}</label>
+                    <select v-model="filters.Sex" @change="onFilterChange" class="filter-select">
+                        <option value="all">{{ t('all_sex') }}</option>
+                        <option value="m">{{ t('male') }}</option>
+                        <option value="f">{{ t('female') }}</option>
+                        <option value="unknown">{{ t('unknown') }}</option>
+                    </select>
+                    <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'gender' }"
+                            @click="toggleAttrDisplay('gender')">{{ t('display_by_gender') }}</button>
+                </div>
+
+                <!-- Filter 5: 艺术家姓名 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('filter_name') }}</label>
+                    <input type="text" v-model="nameFilter" @keyup.enter="onNameFilterEnter" :placeholder="t('name_placeholder')" class="filter-input">
+                </div>
+
+                <!-- 恢复统一符号按钮 -->
+                <div class="filter-row" v-if="GlobalStore.attributeDisplayMode !== null">
+                    <button class="restore-symbol-btn" @click="restoreUnifiedSymbol">{{ t('restore_unified_symbol') }}</button>
+                </div>
+
+                <div class="panel-divider"></div>
+
+                <!-- 结果计数 -->
+                <div class="results-info" v-if="resultCount >= 0">
+                    {{ t('results_count').replace('{count}', resultCount) }}
+                </div>
+                <div class="density-hint" v-if="isDensityHidden && GlobalStore.activeLayerMode === 'density'">
+                    {{ t('density_too_few') }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="vue-right-sidebar-app">
+        <div id="sidebar" :class="{ visible: GlobalStore.isSidebarVisible }">
+            <div id="sidebar-header">
+                <span id="sidebar-title"></span>
+                <a href="#" class="close-btn" @click.prevent="closeSidebar">&times;</a>
+            </div>
+            <div id="sidebar-content">
+                <div class="artist-grid" :class="gridClasses" v-if="mode === 'artist'">
+                    <div class="grid-item grid-tl">
+                        <img v-if="tlImg" :src="tlImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(tlImg)">
+                    </div>
+                    <div class="grid-item grid-tr">
+                        <img v-if="trImg" :src="trImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(trImg)">
+                    </div>
+                    <div class="grid-item grid-bl">
+                        <img v-if="blImg" :src="blImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(blImg)">
+                    </div>
+                    <div class="grid-item grid-br">
+                        <img v-if="brImg" :src="brImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(brImg)">
+                    </div>
+                </div>
+                <div id="artist-info" v-if="artist && mode === 'artist'">
+                    <p><strong>{{ t('name') }}:</strong> {{ isChinese ? artist.Name_CN : artist.Name_EN }}</p>
+                    <p><strong>{{ t('sex') }}:</strong> {{ getSexLabel(artist.Sex) }}</p>
+                    <p><strong>{{ t('nationality') }}:</strong> {{ isChinese ? artist.Natl : artist.Natl_EN }}</p>
+                    <p><strong>{{ t('years') }}:</strong> {{ artist.YOB_YOD }}</p>
+                    <p><strong>{{ t('origin') }}:</strong> {{ isChinese ? artist.Origin_CH : artist.Origin_EN }}</p>
+                    <p><strong>{{ t('introduction') }}:</strong> {{ isChinese ? artist.Bio_CN : artist.Bio_EN }}</p>
+                </div>
+                <div id="studio-info" v-if="mode === 'studio' && studio">
+                    <p><strong>{{ t('studio_name') }}:</strong> {{ isChinese ? studio.Name_CN : studio.Name_EN }}</p>
+                    <p v-if="studio.Hist_Add_C || studio.Hist_Add_E"><strong>{{ t('historical_address') }}:</strong> {{ isChinese ? studio.Hist_Add_C : studio.Hist_Add_E }}</p>
+                    <p v-if="studio.Curr_Add_C || studio.Curr_Add_E"><strong>{{ t('current_address') }}:</strong> {{ isChinese ? studio.Curr_Add_C : studio.Curr_Add_E }}</p>
+                    <p v-if="studio.Period"><strong>{{ t('period') }}:</strong> {{ studio.Period }}</p>
+                    <p><strong>{{ t('artists_info') }}:</strong></p>
+                    <div class="studio-artists-list">
+                        <div v-for="(entry, i) in (studio._artistEntries || [])" :key="i" class="studio-artist-entry">
+                            <div class="studio-artist-line" :class="{ clickable: entry.excluded }" @click="entry.excluded && toggleArtistEntry('artist-' + i)">
+                                <span class="studio-artist-summary">{{ isChinese ? (entry.summary_cn || entry.name_cn) : (entry.summary_en || entry.name_en) }}</span>
+                                <span v-if="entry.excluded" class="toggle-arrow">{{ expanded.has('artist-' + i) ? '▾' : '▸' }}</span>
+                            </div>
+                            <div v-if="entry.excluded && expanded.has('artist-' + i)" class="studio-artist-detail">
+                                <div class="artist-grid detail-grid" :class="gridClassesFor(entry)">
+                                    <div class="grid-item grid-tl">
+                                        <img v-if="getEntryImages(entry).tl" :src="getEntryImages(entry).tl" alt="" @error="handleImgError" @click="openImage(getEntryImages(entry).tl)">
+                                    </div>
+                                    <div class="grid-item grid-tr">
+                                        <img v-if="getEntryImages(entry).tr" :src="getEntryImages(entry).tr" alt="" @error="handleImgError" @click="openImage(getEntryImages(entry).tr)">
+                                    </div>
+                                    <div class="grid-item grid-bl">
+                                        <img v-if="getEntryImages(entry).bl" :src="getEntryImages(entry).bl" alt="" @error="handleImgError" @click="openImage(getEntryImages(entry).bl)">
+                                    </div>
+                                    <div class="grid-item grid-br">
+                                        <img v-if="getEntryImages(entry).br" :src="getEntryImages(entry).br" alt="" @error="handleImgError" @click="openImage(getEntryImages(entry).br)">
+                                    </div>
+                                </div>
+                                <div class="studio-artist-info">
+                                    <p><strong>{{ t('name') }}:</strong> {{ isChinese ? entry.detail.Name_CN : entry.detail.Name_EN }}</p>
+                                    <p><strong>{{ t('sex') }}:</strong> {{ getSexLabel(entry.detail.Sex) }}</p>
+                                    <p><strong>{{ t('nationality') }}:</strong> {{ isChinese ? entry.detail.Natl_CN : entry.detail.Natl_EN }}</p>
+                                    <p><strong>{{ t('years') }}:</strong> {{ entry.detail.YOB_YOD }}</p>
+                                    <p><strong>{{ t('origin') }}:</strong> {{ isChinese ? entry.detail.Origin_CH : entry.detail.Origin_EN }}</p>
+                                    <p><strong>{{ t('introduction') }}:</strong> {{ isChinese ? entry.detail.Bio_CN : entry.detail.Bio_EN }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="vue-info-control-float-app" v-cloak>
+        <div id="info-control-float" @click="toggleLeftPanel" :class="{ active: GlobalStore.isLeftPanelOpen }">
+            <div class="info-control-icon-wrapper">
+                <img src="assets/others/InformationControl.svg" alt="Info Control">
+            </div>
+            <span data-i18n-key="information_control">信息控制</span>
+        </div>
+    </div>
+    <div id='map'></div>
+
+    <div id="vue-legend-app" v-cloak>
+        <div id="attr-legend" v-if="activeConf" :class="'legend-' + GlobalStore.attributeDisplayMode"
+             :style="{ backgroundImage: 'url(' + legendBg + ')' }">
+            <div class="attr-legend-title">{{ legendTitle }}</div>
+            <div class="attr-legend-items">
+                <template v-for="(group, gi) in legendGroups" :key="gi">
+                    <div class="attr-legend-divider" v-if="gi > 0"></div>
+                    <div class="attr-legend-group-title" v-if="group.label">{{ group.label }}</div>
+                    <div class="attr-legend-grid">
+                        <div class="attr-legend-item" v-for="item in group.items" :key="item.key">
+                            <img class="attr-legend-icon" :src="item.icon" :alt="item.label">
+                            <span class="attr-legend-label">{{ item.label }}</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEVELOPMENT TEMP CODE -->
+<!--    <div id="vue-dev-zoom-app">-->
+<!--        <div id="dev-zoom-display" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; z-index: 1000; font-family: monospace; pointer-events: none;">-->
+<!--            Zoom: <span id="dev-zoom-level">11.00</span>-->
+<!--        </div>-->
+<!--    </div>-->
+    <!-- END DEVELOPMENT TEMP CODE -->
+
+    <div id="vue-popup-app">
+        <div id="popup-overlay" :class="{ visible: GlobalStore.isPopupOpen }" @click.self="closePopup">
+            <div id="popup-frame" :class="{ visible: GlobalStore.isPopupOpen, 'show-tooltip': tooltipVisible }">
+                <div id="popup-window" :class="popupModeClass">
+                <div class="popup-tabs">
+                    <div id="historical-map-tab" class="popup-tab" :class="{ active: currentTab === 'historical' }" @click="setTab('historical')">
+                        <img src="assets/others/historicalMap.svg" alt="Historical Map">
+                        <div data-i18n-key="historical_map">{{ t('historical_map') }}</div>
+                    </div>
+                    <div id="contemporary-map-tab" class="popup-tab" :class="{ active: currentTab === 'contemporary' }" @click="setTab('contemporary')">
+                        <img src="assets/others/contemporaryMap.svg" alt="Contemporary Map">
+                        <div data-i18n-key="contemporary_map">{{ t('contemporary_map') }}</div>
+                    </div>
+                    <div id="building-photo-tab" class="popup-tab" :class="{ active: currentTab === 'photo' }" @click="setTab('photo')">
+                        <img src="assets/others/buildingPhoto.svg" alt="Building Photo">
+                        <div data-i18n-key="building_photo">{{ t('building_photo') }}</div>
+                    </div>
+                    <div class="tab-help-container">
+                        <img src="assets/others/information.svg" class="tab-help-icon" alt="info"
+                             @click.stop="toggleTooltip"
+                             @mouseenter="showTooltip"
+                             @mouseleave="hideTooltip">
+                        <div class="tab-help-tooltip" :class="{ visible: tooltipVisible, 'tip-long': isLongTab }" :style="{ padding: tooltipPadding }">
+                            <div class="tab-help-tooltip-scroll" v-html="t(helpTooltipKey)"></div>
+                        </div>
+                        <span class="close-popup-btn" @click="closePopup">&times;</span>
+                    </div>
+                </div>
+                <div id="popup-content">
+                    <div v-if="!manifestLoaded">
+                        Picture manifest not loaded yet.
+                    </div>
+                    <div v-else-if="!currentArtist || !currentArtist.ID">
+                    </div>
+                    <template v-else>
+                        <!-- Historical Map Tab -->
+                        <template v-if="currentTab === 'historical'">
+                            <div v-if="historicalImgSrc" class="carousel-item active historical-map-content" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
+                                <div class="image-wrapper" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
+                                    <img :src="historicalImgSrc" alt="History" style="max-width: 100%; max-height: 100%; object-fit: contain;" @error="handleImgError" @click="openViewer(historicalImgSrc)">
+                                </div>
+                                <div class="image-caption">{{ histAddressText }}</div>
+                            </div>
+                            <div v-else class="carousel-item active historical-map-content" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
+                                <div class="image-wrapper" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
+                                    <img src="assets/mapReplace.jpg" alt="History" style="max-width: 100%; max-height: 100%; object-fit: contain;" @click="openViewer('assets/mapReplace.jpg')">
+                                </div>
+                                <div class="image-caption">{{ histAddressText }}</div>
+                            </div>
+                        </template>
+                        <!-- Contemporary Map Tab -->
+                        <template v-else-if="currentTab === 'contemporary'">
+                            <div v-if="contemporaryMode === 'compare'" class="contemporary-grid mode-compare">
+                                <div class="contemporary-grid-image history-image">
+                                    <img :src="contemporaryHistoryImg" alt="History" @click="openViewer(contemporaryHistoryImg)">
+                                </div>
+                                <div class="contemporary-grid-image present-image">
+                                    <img v-if="contemporaryPresentImg" :src="contemporaryPresentImg" alt="Present" @click="openViewer(contemporaryPresentImg)">
+                                </div>
+                                <div class="contemporary-grid-caption">{{ histAddressText }}</div>
+                                <div class="contemporary-grid-caption">{{ currAddressText }}</div>
+                            </div>
+                            <div v-else-if="contemporaryMode === 'present-only'" class="contemporary-grid" style="grid-template-columns: 1fr;">
+                                <div class="contemporary-grid-image">
+                                    <img :src="contemporaryPresentImg" alt="Present" @click="openViewer(contemporaryPresentImg)">
+                                </div>
+                                <div class="contemporary-grid-caption">{{ currAddressText }}</div>
+                            </div>
+                            <div v-else>
+                                No maps available.
+                            </div>
+                        </template>
+                        <!-- Building Photo Tab -->
+                        <template v-else-if="currentTab === 'photo'">
+                            <div v-if="buildingPhotos.length > 0" class="carousel-container">
+                                <div class="carousel">
+                                    <div class="carousel-inner">
+                                        <div v-for="(photo, index) in buildingPhotos" :key="'img'+index" :class="['carousel-item', { active: carouselIndex === index }]">
+                                            <div class="image-wrapper">
+                                                <img :src="photo" :alt="'Building Photo ' + (index + 1)" @click="openViewer(photo)">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <a class="prev" v-show="buildingPhotos.length > 1" @click="prevPhoto">&#10094;</a>
+                                    <a class="next" v-show="buildingPhotos.length > 1" @click="nextPhoto">&#10095;</a>
+                                </div>
+                                <div class="thumbnail-container">
+                                    <div v-for="(photo, index) in buildingPhotos" :key="'thumb'+index" :class="['thumbnail-item', { active: carouselIndex === index }]" @click="carouselIndex = index">
+                                        <img :src="photo" :alt="'Thumbnail ' + (index + 1)">
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else>
+                                No building photos available.
+                            </div>
+                        </template>
+                    </template>
+                </div>
+            </div>
+            </div>
+        </div>
+        <div id="image-viewer" :style="{ display: GlobalStore.isViewerOpen ? 'flex' : 'none' }" @click.self="closeViewer">
+            <span class="close-viewer-btn" @click="closeViewer">&times;</span>
+            <img id="viewer-image" :src="GlobalStore.viewerSrc" alt="Full-size view">
+        </div>
+    </div>
+
+    <script src="js/roadGraphBuilder.js"></script>
+    <script src="js/artistRelationshipControl.js"></script>
+    <script src="js/attributeDisplay.js"></script>
+    <script src="js/dataParse.js"></script>
+    <script src="js/densityMapGenerate.js"></script>
+    <script src="js/languageControl.js"></script>
+    <script src="js/layerControl.js"></script>
+    <script src="js/leftControlBarControl.js"></script>
+    <script src="js/mainMap.js"></script>
+    <script src="js/studioArtistMatch.js"></script>
+    <script src="js/mapControl.js"></script>
+    <script src="js/studioMarkersControl.js"></script>
+    <script src="js/migratoryRouteControl.js"></script>
+    <script src="js/popupWindowControl.js"></script>
+    <script src="js/searchControl.js"></script>
+    <script src="js/sidebarControl.js"></script>
+    <script src="js/addressBarHider.js"></script>
+
+</body>
+</html>

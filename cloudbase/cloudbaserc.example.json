@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.cloudbase.net/cli/cloudbaserc.schema.json",
+  "envId": "REPLACE_WITH_ENV_ID",
+  "functionRoot": "./functions",
+  "functions": [
+    {
+      "name": "api",
+      "timeout": 10,
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "envVariables": {
+        "TOKEN_SECRET": "REPLACE_WITH_RANDOM_SECRET",
+        "ALLOWED_ORIGIN": "https://YOUR_USER.github.io,http://localhost:8080",
+        "MAPBOX_TOKEN": "REPLACE_WITH_MAPBOX_TOKEN"
+      }
+    },
+    {
+      "name": "data",
+      "timeout": 20,
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "envVariables": {
+        "TOKEN_SECRET": "REPLACE_WITH_RANDOM_SECRET",
+        "ALLOWED_ORIGIN": "https://YOUR_USER.github.io,http://localhost:8080",
+        "STORAGE_PREFIX": "cloud://REPLACE_WITH_STORAGE_PREFIX/"
+      }
+    }
+  ]
+}

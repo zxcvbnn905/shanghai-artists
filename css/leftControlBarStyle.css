@@ -1,0 +1,286 @@
+#left-control-bar {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 320px;
+    background: url('../assets/others/leftControlBackground.png') no-repeat;
+    background-size: 100% 100%;
+    backdrop-filter: blur(12px) saturate(180%);
+    z-index: 2147483646;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    padding: 34px 20px 24px 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+#left-control-bar.active {
+    transform: translateX(0);
+}
+
+#left-control-bar-content h3 {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 16px;
+    color: #333;
+    flex: 1;
+}
+
+.left-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #eee;
+    padding: 0 8px 10px 8px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+}
+
+.close-panel-btn {
+    width: 20px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.close-panel-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+.close-panel-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* 图层切换按钮组 */
+.layer-toggle-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.layer-toggle-btn {
+    flex: none;
+    padding: 10px 12px 10px 40px;
+    width: 260px;
+    border: none;
+    background: url('../assets/others/leftControlUnselected.png') no-repeat;
+    background-size: 100% 100%;
+    cursor: pointer;
+    font-size: 15px;
+    color: #8D5E3C;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.layer-toggle-btn img {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.layer-toggle-btn:hover:not(:disabled) {
+    filter: brightness(0.95);
+}
+
+.layer-toggle-btn.active {
+    background: url('../assets/others/leftControlSelected.png') no-repeat;
+    background-size: 100% 100%;
+    color: #fff;
+}
+
+.layer-toggle-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 分隔线 */
+.panel-divider {
+    height: 1px;
+    background: #e0d8d0;
+    margin: 14px 0;
+}
+
+/* Filter 行 */
+.filter-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    font-size: 13px;
+    color: #666;
+    min-width: 36px;
+    white-space: nowrap;
+}
+
+.filter-select {
+    flex: 1;
+    min-width: 80px;
+    padding: 6px 8px;
+    border: 1px solid #d0c8c0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #333;
+    background: #fafaf8;
+    cursor: pointer;
+    outline: none;
+    font-family: inherit;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.filter-select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f0f0f0;
+}
+
+.filter-input {
+    flex: 1;
+    min-width: 80px;
+    padding: 6px 10px;
+    border: 1px solid #d0c8c0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #333;
+    background: #fafaf8;
+    outline: none;
+    font-family: inherit;
+}
+
+.filter-input:focus {
+    border-color: #C0A080;
+}
+
+.filter-input::placeholder {
+    color: #bbb;
+}
+
+/* 按属性显示按钮 */
+.attr-display-btn {
+    padding: 6px 10px;
+    border: 1px solid #d0c8c0;
+    background: #fafaf8;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #8D5E3C;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.attr-display-btn:hover:not(:disabled) {
+    background: #f0e8dc;
+    border-color: #C0A080;
+}
+
+.attr-display-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.attr-display-btn.active {
+    background: #8D5E3C;
+    color: #fff;
+    border-color: #6D3E1C;
+}
+
+/* 恢复统一符号按钮 */
+.restore-symbol-btn {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px dashed #C0A080;
+    background: #faf8f5;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #8D5E3C;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.restore-symbol-btn:hover {
+    background: #f0e8dc;
+    border-color: #A08060;
+}
+
+/* 结果信息 */
+.results-info {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    padding: 4px 0;
+}
+
+.density-hint {
+    font-size: 12px;
+    color: #c0a060;
+    text-align: center;
+    padding: 4px 0;
+    font-style: italic;
+}
+
+/* 信息按钮样式 */
+.info-btn {
+    padding: 6px 16px;
+    border: 1px solid #C0A080;
+    background: transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #8D5E3C;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+
+.info-btn:hover {
+    background: #C0A080;
+    color: #fff;
+}
+
+@media (max-width: 768px), (max-height: 500px) {
+    #left-control-bar {
+        width: 33.3vw;
+        top: 50px;
+        bottom: 0;
+        padding: 20px 20px 24px 20px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #left-control-bar-content {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .layer-toggle-btn {
+        width: 100%;
+    }
+}
