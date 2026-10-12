@@ -340,8 +340,52 @@ Vue.createApp({
         }
     }
 
+    // 按可用高度整体缩放正文字号（子元素均用 em，随基准字号联动），
+    // 让固定分页在小屏上也能装下、不与密码框重叠。装不下时返回 false，交给重新分页兜底。
+    var BASE_FONT = 14;
+    var MIN_FONT = 10;   // 低于此仍装不下就改用重新分页兜底
+
+    function worstSlideHeight() {
+        var secs = content.querySelectorAll('.about-slide');
+        var need = 0;
+        for (var i = 0; i < secs.length; i++) {
+            if (secs[i].clientHeight > 0) need = Math.max(need, secs[i].scrollHeight);
+        }
+        return { need: need, avail: secs.length ? secs[0].clientHeight : 0 };
+    }
+
+    function fitsAt(fs) {
+        content.style.fontSize = fs + 'px';
+        var m = worstSlideHeight();
+        // scrollHeight 不会小于 clientHeight，故 need<=avail 等价于「没有溢出」
+        return !!m.avail && m.need <= m.avail;
+    }
+
+    function fitContentScale() {
+        if (isCompactMode()) return true;   // 小屏走媒体查询里的 12px + 重新分页
+
+        content.style.fontSize = '';
+        var m0 = worstSlideHeight();
+        if (!m0.avail) return true;         // 内容尚未就绪，无需缩放
+        if (m0.need <= m0.avail) return true;
+
+        // 字号越大内容越高，单调；二分找「装得下的最大字号」
+        if (!fitsAt(MIN_FONT)) { content.style.fontSize = ''; return false; }
+        var lo = MIN_FONT, hi = BASE_FONT;
+        for (var i = 0; i < 12; i++) {
+            var mid = (lo + hi) / 2;
+            if (fitsAt(mid)) lo = mid; else hi = mid;
+        }
+        content.style.fontSize = lo.toFixed(2) + 'px';
+        return true;
+    }
+
     function buildCarousel() {
-        if (isCompactMode()) paginateCompact();
+        // 先尝试缩放字号保持既有分页；仍装不下才按可用高度重新分页
+        if (isCompactMode() || !fitContentScale()) {
+            content.style.fontSize = '';
+            paginateCompact();
+        }
         slides = content.querySelectorAll('.about-slide');
         current = 0;
         if (dotsBox) dotsBox.innerHTML = '';

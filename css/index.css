@@ -553,11 +553,12 @@ body[data-lang="en"] .info-names {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    /* 底部预留密码框空间：不是用 padding，而是让裁剪边界就落在密码框之上，
+       否则 overflow:hidden 会裁在面板内容区底部，正文会压到密码框上 */
+    bottom: 80px;
     box-sizing: border-box;
     overflow: hidden;
     padding-right: 6px;
-    padding-bottom: 80px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s;
@@ -594,17 +595,23 @@ body[data-lang="en"] .info-names {
     transform: scale(1.25);
 }
 
+/* 正文基准字号由 JS 按可用高度缩放（见 index.js 的 fitContentScale）；
+   以下子元素一律用 em，改这一个值即可整体缩放字号、行距与间距 */
+#about-content {
+    font-size: 14px;
+}
+
 #about-content h1 {
-    font-size: 22px;
+    font-size: 1.571em;
     text-align: center;
-    margin: 0 0 16px 0;
+    margin: 0 0 1.143em 0;
     letter-spacing: 2px;
     color: #3d3028;
 }
 
 #about-content h2 {
-    font-size: 17px;
-    margin: 22px 0 10px 0;
+    font-size: 1.214em;
+    margin: 1.571em 0 0.714em 0;
     letter-spacing: 1px;
     color: #3d3028;
 }
@@ -614,15 +621,15 @@ body[data-lang="en"] .info-names {
 }
 
 #about-content h3 {
-    font-size: 15px;
-    margin: 16px 0 6px 0;
+    font-size: 1.071em;
+    margin: 1.143em 0 0.429em 0;
     color: #4a3f35;
 }
 
 #about-content p {
-    font-size: 14px;
+    font-size: 1em;
     line-height: 1.8;
-    margin: 0 0 10px 0;
+    margin: 0 0 0.714em 0;
     text-align: justify;
 }
 
@@ -633,28 +640,43 @@ body[data-lang="en"] .info-names {
 
 /* 团队名单网格：贴近首页信息按键的紧凑宽度 */
 #about-content .info-names {
+    font-size: 0.929em;
+    gap: 0.286em 0.571em;
     max-width: 640px;
     margin: 0 auto;
     text-align: center;
 }
 
+#about-content .info-section {
+    margin-top: 1em;
+}
+
 #about-content .info-section-head {
+    font-size: 0.929em;
+    margin-bottom: 0.429em;
     text-align: center;
 }
 
+#about-content .info-team-title {
+    font-size: 1.143em;
+    margin-bottom: 0.571em;
+}
+
 #about-content .info-team-lead {
+    font-size: 0.929em;
+    margin-bottom: 0.286em;
     text-align: center;
 }
 
 #about-content ol {
-    margin: 0 0 12px 0;
-    padding-left: 22px;
+    margin: 0 0 0.857em 0;
+    padding-left: 1.571em;
 }
 
 #about-content li {
-    font-size: 14px;
+    font-size: 1em;
     line-height: 1.7;
-    margin-bottom: 8px;
+    margin-bottom: 0.571em;
     text-align: justify;
 }
 
@@ -696,13 +718,12 @@ body[data-lang="en"] .info-names {
         padding: 34px 32px 40px;
     }
 
-    #about-content h1 {
-        font-size: 18px;
+    #about-content {
+        font-size: 12px;
     }
 
     #about-content p,
     #about-content li {
-        font-size: 12px;
         line-height: 1.65;
     }
 
@@ -715,7 +736,7 @@ body[data-lang="en"] .info-names {
     }
 
     .about-slide {
-        padding-bottom: 55px;
+        bottom: 76px;
     }
 
     .about-dots {
