@@ -309,6 +309,12 @@
     color: #bbb;
 }
 
+.filter-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f0f0f0;
+}
+
 /* 按属性显示按钮 */
 .attr-display-btn {
     padding: 6px 10px;

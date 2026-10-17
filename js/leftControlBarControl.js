@@ -10,10 +10,18 @@
     };
 
     let fuse = null;
+    let studioFuse = null;
 
     const initFuse = () => {
         if (window.artists && window.artists.length > 0) {
             fuse = new Fuse(window.artists, {
+                includeScore: true,
+                keys: ['Name_CN', 'Name_EN'],
+                threshold: 0.4
+            });
+        }
+        if (window.studios && window.studios.length > 0) {
+            studioFuse = new Fuse(window.studios, {
                 includeScore: true,
                 keys: ['Name_CN', 'Name_EN'],
                 threshold: 0.4
@@ -28,6 +36,7 @@
             // Natl: 已勾选的 Natl_CN 数组；空数组 = 所有国籍（value 与语言无关）
             const filters = reactive({ Natl: [], Origin: 'all', Sex: 'all' });
             const nameFilter = ref('');
+            const studioNameFilter = ref('');
 
             const natlPanelOpen = ref(false);
             const natlPanelRef = ref(null);
@@ -63,6 +72,9 @@
                 if (window._i18nTick) window._i18nTick.n;
                 return window.t ? window.t(key) : key;
             };
+
+            const isArtistSearchDisabled = computed(() => studioNameFilter.value.trim().length > 0);
+            const isStudioSearchDisabled = computed(() => nameFilter.value.trim().length > 0);
 
             const isAllNatl = computed(() =>
                 natlOptions.value.length > 0 && filters.Natl.length === natlOptions.value.length
@@ -124,32 +136,36 @@
                 window.map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
             };
 
+            // 模糊搜索：前两名得分接近时不猜测，回退到子串匹配；否则返回同名记录集合
+            const pickFuzzyMatches = (fuseInstance, query, items) => {
+                const results = fuseInstance.search(query);
+                if (results.length === 0) return new Set();
+                if (results.length >= 2 && (results[1].score - results[0].score) < 0.05) return null;
+                const top = results[0].item;
+                const sameName = items.filter(a =>
+                    (a.Name_CN || '') === (top.Name_CN || '') &&
+                    (a.Name_EN || '') === (top.Name_EN || '')
+                );
+                return new Set(sameName.map(a => a.ID));
+            };
+
             const applyFilters = () => {
                 if (!window.artists) return;
 
                 const sYear = parseInt(startYear.value, 10);
                 const eYear = parseInt(endYear.value, 10);
                 const nameQuery = nameFilter.value.trim().toLowerCase();
+                const studioQuery = studioNameFilter.value.trim().toLowerCase();
                 const selectedNatl = filters.Natl;
 
-                let fuzzyMatchIds = null;
-                if (nameQuery && fuse) {
-                    const results = fuse.search(nameQuery);
-                    if (results.length === 0) {
-                        fuzzyMatchIds = new Set();
-                    } else if (results.length >= 2 && (results[1].score - results[0].score) < 0.05) {
-                        fuzzyMatchIds = null;
-                    } else {
-                        const top = results[0].item;
-                        const sameNameArtists = window.artists.filter(a =>
-                            (a.Name_CN || '') === (top.Name_CN || '') &&
-                            (a.Name_EN || '') === (top.Name_EN || '')
-                        );
-                        fuzzyMatchIds = new Set(sameNameArtists.map(a => a.ID));
-                    }
-                }
+                const fuzzyMatchIds = (nameQuery && fuse)
+                    ? pickFuzzyMatches(fuse, nameQuery, window.artists)
+                    : null;
+                const studioFuzzyIds = (studioQuery && studioFuse)
+                    ? pickFuzzyMatches(studioFuse, studioQuery, window.studios || [])
+                    : null;
 
-                const filteredArtists = window.artists.filter(artist => {
+                let filteredArtists = window.artists.filter(artist => {
                     // CSV 中 Sex 为大写 M/F/Unknown，下拉框值为小写；空值按"不详"处理
                     const sex = (artist.Sex || '').trim().toLowerCase() || 'unknown';
                     if (filters.Sex !== 'all' && sex !== filters.Sex) return false;
@@ -182,8 +198,9 @@
 
                     return true;
                 });
+                if (studioQuery) filteredArtists = [];
 
-                const filteredStudios = (window.studios || []).filter(s => {
+                let filteredStudios = (window.studios || []).filter(s => {
                     if (selectedNatl.length === 0) return false;
                     const text = (s['艺术ists_Information_CN'] || '');
                     if (!selectedNatl.some(n => (NATL_MATCH_TERMS[n] || [n]).some(term => text.includes(term)))) return false;
@@ -200,11 +217,23 @@
                             if (!m) return false;
                         }
                     }
+
+                    if (studioQuery) {
+                        if (studioFuzzyIds) {
+                            if (!studioFuzzyIds.has(s.ID)) return false;
+                        } else {
+                            const cn = (s.Name_CN || '').toLowerCase();
+                            const en = (s.Name_EN || '').toLowerCase();
+                            if (!cn.includes(studioQuery) && !en.includes(studioQuery)) return false;
+                        }
+                    }
+
                     return true;
                 });
+                if (nameQuery) filteredStudios = [];
                 window.currentFilteredStudios = filteredStudios;
 
-                resultCount.value = filteredArtists.length;
+                resultCount.value = studioQuery ? filteredStudios.length : filteredArtists.length;
 
                 requestAnimationFrame(() => {
                     if (typeof window.updateMarkers === 'function') {
@@ -273,6 +302,10 @@
                         if (typeof window.updateAllMarkerStyles === 'function') {
                             window.updateAllMarkerStyles();
                         }
+                    }
+                    // 社交关系只支持中国单选，条件不再满足时自动退回"仅位置"
+                    if (window.GlobalStore && window.GlobalStore.activeLayerMode === 'social') {
+                        setLayerMode('position');
                     }
                 }
                 debouncedApplyFilters();
@@ -353,7 +386,21 @@
                 if (event.key === 'Escape') closeNatlPanel(true);
             };
 
+            const onNameFilterInput = () => {
+                if (!nameFilter.value.trim()) applyFilters();
+                else debouncedApplyFilters();
+            };
+
+            const onStudioNameFilterInput = () => {
+                if (!studioNameFilter.value.trim()) applyFilters();
+                else debouncedApplyFilters();
+            };
+
             const onNameFilterEnter = () => {
+                debouncedApplyFilters();
+            };
+
+            const onStudioNameFilterEnter = () => {
                 debouncedApplyFilters();
             };
 
@@ -560,7 +607,8 @@
             }
 
             return {
-                startYear, endYear, filters, nameFilter,
+                startYear, endYear, filters, nameFilter, studioNameFilter,
+                isArtistSearchDisabled, isStudioSearchDisabled,
                 natlOptions, originOptions, yearOptions,
                 resultCount,
                 isSocialDisabled, isDensityDisabled, isDensityHidden,
@@ -570,7 +618,9 @@
                 isAllNatl, isPartialNatl, natlSummary,
                 toggleNatlPanel, selectAllNationalities,
                 t, setLayerMode, onStartYearChange, onEndYearChange, onFilterChange,
-                onNameFilterEnter, toggleAttrDisplay, restoreUnifiedSymbol,
+                onNameFilterInput, onStudioNameFilterInput,
+                onNameFilterEnter, onStudioNameFilterEnter,
+                toggleAttrDisplay, restoreUnifiedSymbol,
                 closePanel,
                 GlobalStore: window.GlobalStore
             };

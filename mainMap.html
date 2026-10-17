@@ -194,7 +194,15 @@
                 <!-- Filter 5: 艺术家姓名 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('filter_name') }}</label>
-                    <input type="text" v-model="nameFilter" @keyup.enter="onNameFilterEnter" :placeholder="t('name_placeholder')" class="filter-input">
+                    <input type="text" v-model="nameFilter" @input="onNameFilterInput" @keyup.enter="onNameFilterEnter"
+                           :disabled="isArtistSearchDisabled" :placeholder="t('name_placeholder')" class="filter-input">
+                </div>
+
+                <!-- Filter 6: 工作室名称 -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('studio_name') }}</label>
+                    <input type="text" v-model="studioNameFilter" @input="onStudioNameFilterInput" @keyup.enter="onStudioNameFilterEnter"
+                           :disabled="isStudioSearchDisabled" :placeholder="t('studio_name_placeholder')" class="filter-input">
                 </div>
 
                 <!-- 恢复统一符号按钮 -->

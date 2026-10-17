@@ -24,6 +24,8 @@
     const State = {
         allActive: [],
         active: [],
+        focusName: null,   // 通过标点菜单聚焦的艺术家姓名；筛选变化时据此重算单人关系
+        focusId: null,     // 被点击的那条艺术家记录，避免同名多标点同时出线
         isDrawing: false,
         needsRedraw: false,
         popups: []
@@ -41,8 +43,12 @@
 
         if (!startYear || !endYear || !window.relationshipsData) {
             State.allActive = [];
-            State.active = [];
-            drawRelationships();
+            if (State.focusName && !window.forceShowAllRelationships) {
+                applyFocusRelationships(filteredArtists);
+            } else {
+                State.active = [];
+                drawRelationships();
+            }
             return;
         }
 
@@ -79,7 +85,9 @@
 
         State.allActive = activeBatch;
 
-        if (typeof filterRelationshipsToVisible === 'function') {
+        if (State.focusName && !window.forceShowAllRelationships) {
+            applyFocusRelationships(filteredArtists);
+        } else if (typeof filterRelationshipsToVisible === 'function') {
             filterRelationshipsToVisible();
         } else {
             State.active = activeBatch;
@@ -290,23 +298,28 @@
         });
     }
 
-    function showArtistRelationships(artist) {
-        if (!artist || !window.relationshipsData) {
+    // 聚焦艺术家必须仍在当前筛选结果中；一旦被筛掉就直接退出单人社交视图
+    function applyFocusRelationships(filteredArtists) {
+        if (!State.focusName) return;
+        const visibleArtists = filteredArtists || window.currentFilteredArtists || window.artists || [];
+        if (!visibleArtists.some(a => a.Name_CN === State.focusName)) {
+            State.focusName = null;
+            State.focusId = null;
             State.active = [];
             drawRelationships();
             return;
         }
+        // 单人视图忽略搜索/筛选：关系两端都从完整艺术家集合中取
+        State.active = buildArtistRelationships(State.focusName, window.artists || visibleArtists, State.focusId);
+        drawRelationships();
+    }
 
-        const figureName = artist.Name_CN;
-        if (!figureName) {
-            State.active = [];
-            drawRelationships();
-            return;
-        }
+    function buildArtistRelationships(figureName, artists, focusId) {
+        if (!figureName || !window.relationshipsData) return [];
 
-        const visibleArtists = window.currentFilteredArtists || window.artists || [];
-
+        const visibleArtists = artists || window.artists || window.currentFilteredArtists || [];
         const activeBatch = [];
+
         window.relationshipsData.forEach(rel => {
             const fig = rel.Figure;
             const fri = rel.Friends;
@@ -315,19 +328,40 @@
             if (fig === figureName || fri === figureName) {
                 const figures = visibleArtists.filter(a => a.Name_CN === fig);
                 const friends = visibleArtists.filter(a => a.Name_CN === fri);
-                figures.forEach(f => {
-                    friends.forEach(r => {
+                // 聚焦方只取被点击的那条记录；关系对方仍可匹配全部同名标点
+                const figPinned = focusId && fig === figureName
+                    ? figures.filter(a => a.ID === focusId) : figures;
+                const friPinned = focusId && fri === figureName
+                    ? friends.filter(a => a.ID === focusId) : friends;
+                figPinned.forEach(f => {
+                    friPinned.forEach(r => {
                         activeBatch.push({fig: f, fri: r});
                     });
                 });
             }
         });
 
-        State.active = activeBatch;
+        return activeBatch;
+    }
+
+    function showArtistRelationships(artist) {
+        if (!artist || !artist.Name_CN || !window.relationshipsData) {
+            State.focusName = null;
+            State.focusId = null;
+            State.active = [];
+            drawRelationships();
+            return;
+        }
+
+        State.focusName = artist.Name_CN;
+        State.focusId = artist.ID;
+        State.active = buildArtistRelationships(State.focusName, window.artists, State.focusId);
         drawRelationships();
     }
 
     function clearArtistRelationships() {
+        State.focusName = null;
+        State.focusId = null;
         State.active = [];
         drawRelationships();
     }
