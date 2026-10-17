@@ -25,8 +25,16 @@
         setup() {
             const startYear = ref(1912);
             const endYear = ref(1948);
-            const filters = reactive({ Natl: 'all', Origin: 'all', Sex: 'all' });
+            // Natl: 已勾选的 Natl_CN 数组；空数组 = 所有国籍（value 与语言无关）
+            const filters = reactive({ Natl: [], Origin: 'all', Sex: 'all' });
             const nameFilter = ref('');
+
+            const natlPanelOpen = ref(false);
+            const natlPanelRef = ref(null);
+            const natlTriggerRef = ref(null);
+            const natlDropdownRef = ref(null);
+            const natlDropdownStyle = ref({});
+            let natlInitialized = false;
 
             const natlOptions = ref([]);
             const originOptions = ref([]);
@@ -35,7 +43,7 @@
 
             const currentLang = ref(window.currentLanguage || 'zh');
 
-            const isChineseNatl = () => filters.Natl === '中国';
+            const isChineseNatl = () => filters.Natl.length === 1 && filters.Natl[0] === '中国';
 
             const isSocialDisabled = computed(() => !isChineseNatl());
 
@@ -51,8 +59,31 @@
 
             const t = (key) => {
                 currentLang.value;
+                // 翻译 JSON 异步加载完成后 _i18nTick 自增，据此让摘要文案重新求值
+                if (window._i18nTick) window._i18nTick.n;
                 return window.t ? window.t(key) : key;
             };
+
+            const isAllNatl = computed(() =>
+                natlOptions.value.length > 0 && filters.Natl.length === natlOptions.value.length
+            );
+
+            const isPartialNatl = computed(() =>
+                filters.Natl.length > 0 && filters.Natl.length < natlOptions.value.length
+            );
+
+            const natlSummary = computed(() => {
+                const sel = filters.Natl;
+                if (natlOptions.value.length === 0 || sel.length === natlOptions.value.length) {
+                    return t('all_natl');
+                }
+                if (sel.length === 0) return t('no_natl_selected');
+                if (sel.length === 1) {
+                    const opt = natlOptions.value.find(o => o.value === sel[0]);
+                    return opt ? opt.label : sel[0];
+                }
+                return t('selected_natl_count').replace('{count}', String(sel.length));
+            });
 
             const setLayerMode = (mode) => {
                 if (!window.GlobalStore) return;
@@ -99,6 +130,7 @@
                 const sYear = parseInt(startYear.value, 10);
                 const eYear = parseInt(endYear.value, 10);
                 const nameQuery = nameFilter.value.trim().toLowerCase();
+                const selectedNatl = filters.Natl;
 
                 let fuzzyMatchIds = null;
                 if (nameQuery && fuse) {
@@ -121,7 +153,7 @@
                     // CSV 中 Sex 为大写 M/F/Unknown，下拉框值为小写；空值按"不详"处理
                     const sex = (artist.Sex || '').trim().toLowerCase() || 'unknown';
                     if (filters.Sex !== 'all' && sex !== filters.Sex) return false;
-                    if (filters.Natl !== 'all' && (artist.Natl_CN || '').trim() !== filters.Natl) return false;
+                    if (!selectedNatl.includes(natlKey((artist.Natl_CN || '').trim()))) return false;
                     if (filters.Origin !== 'all' && artist._originProv !== filters.Origin) return false;
 
                     if (!isNaN(sYear) && !isNaN(eYear)) {
@@ -152,10 +184,9 @@
                 });
 
                 const filteredStudios = (window.studios || []).filter(s => {
-                    if (filters.Natl !== 'all') {
-                        const text = (s['艺术ists_Information_CN'] || '');
-                        if (!text.includes(filters.Natl)) return false;
-                    }
+                    if (selectedNatl.length === 0) return false;
+                    const text = (s['艺术ists_Information_CN'] || '');
+                    if (!selectedNatl.some(n => (NATL_MATCH_TERMS[n] || [n]).some(term => text.includes(term)))) return false;
 
                     if (!isNaN(sYear) && !isNaN(eYear)) {
                         const ys = s._yearSet;
@@ -231,11 +262,12 @@
 
             const onFilterChange = () => {
                 if (filters.Origin !== 'all') {
-                    filters.Natl = '中国'; // 国籍 value 语言无关
+                    filters.Natl = ['中国']; // 国籍 value 语言无关
+                    natlPanelOpen.value = false;
                 }
                 if (!isChineseNatl()) {
                     filters.Origin = 'all';
-                    // 与籍贯筛选一致：国籍非中国时退出"按籍贯显示"
+                    // 与籍贯筛选一致：国籍非中国单选时退出"按籍贯显示"
                     if (window.GlobalStore && window.GlobalStore.attributeDisplayMode === 'origin') {
                         window.GlobalStore.attributeDisplayMode = null;
                         if (typeof window.updateAllMarkerStyles === 'function') {
@@ -244,6 +276,81 @@
                     }
                 }
                 debouncedApplyFilters();
+            };
+
+            const closeNatlPanel = (focusTrigger = false) => {
+                if (!natlPanelOpen.value) return;
+                natlPanelOpen.value = false;
+                if (focusTrigger && natlTriggerRef.value) natlTriggerRef.value.focus();
+            };
+
+            // 面板 teleport 到 body 并用 fixed 定位，避免撑高侧栏或被 overflow 裁切
+            const updateNatlDropdownPosition = () => {
+                const trigger = natlTriggerRef.value;
+                if (!trigger) return;
+                const rect = trigger.getBoundingClientRect();
+                const control = natlPanelRef.value;
+                const margin = 6;
+                const edge = 10;
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+                const controlWidth = control ? control.getBoundingClientRect().width : rect.width;
+                const width = Math.min(Math.max(controlWidth, 200), vw - edge * 2);
+                const left = Math.min(Math.max(edge, rect.left), vw - width - edge);
+                const spaceBelow = vh - rect.bottom - margin - edge;
+                const spaceAbove = rect.top - margin - edge;
+                const openUp = spaceBelow < 140 && spaceAbove > spaceBelow;
+                const maxHeight = Math.max(100, Math.min(200, openUp ? spaceAbove : spaceBelow));
+                natlDropdownStyle.value = {
+                    position: 'fixed',
+                    left: left + 'px',
+                    width: width + 'px',
+                    maxHeight: maxHeight + 'px',
+                    top: openUp ? 'auto' : (rect.bottom + margin) + 'px',
+                    bottom: openUp ? (vh - rect.top + margin) + 'px' : 'auto'
+                };
+            };
+
+            const toggleNatlPanel = () => {
+                if (isNatlDisabled.value) return;
+                if (natlPanelOpen.value) {
+                    natlPanelOpen.value = false;
+                    return;
+                }
+                updateNatlDropdownPosition();
+                natlPanelOpen.value = true;
+            };
+
+            let natlPositionRaf = 0;
+            const onDocumentScroll = () => {
+                if (!natlPanelOpen.value || natlPositionRaf) return;
+                natlPositionRaf = requestAnimationFrame(() => {
+                    natlPositionRaf = 0;
+                    updateNatlDropdownPosition();
+                });
+            };
+
+            const onWindowResize = () => {
+                if (natlPanelOpen.value) updateNatlDropdownPosition();
+            };
+
+            const selectAllNationalities = () => {
+                const all = natlOptions.value.map(o => o.value);
+                filters.Natl = filters.Natl.length === all.length ? [] : all;
+                onFilterChange();
+            };
+
+            const onDocumentClick = (event) => {
+                if (!natlPanelOpen.value) return;
+                const root = natlPanelRef.value;
+                const dropdown = natlDropdownRef.value;
+                if (root && root.contains(event.target)) return;
+                if (dropdown && dropdown.contains(event.target)) return;
+                closeNatlPanel(false);
+            };
+
+            const onDocumentKeydown = (event) => {
+                if (event.key === 'Escape') closeNatlPanel(true);
             };
 
             const onNameFilterEnter = () => {
@@ -316,6 +423,27 @@
                 return '其他';
             };
 
+            // 奥匈帝国并入奥地利：筛选项统一用「奥地利」的 value/label
+            const NATL_ALIAS = { '奥匈帝国': '奥地利' };
+            const NATL_MATCH_TERMS = { '奥地利': ['奥地利', '奥匈帝国'] };
+            const natlKey = (cn) => NATL_ALIAS[cn] || cn;
+
+            // 英文国籍名以国籍图例（attributeDisplay.js）为单一数据源；
+            // 图例未收录的值用全称兜底（CSV 里的 Natl_EN 多为 CHN/JPN 这类缩写）。
+            const NATL_EN_FALLBACK = {
+                '英国/德国': 'UK / Germany',
+                '印度': 'India'
+            };
+
+            const getNatlLabel = (cn, rawEn) => {
+                const conf = window.AttrDisplayConfig && window.AttrDisplayConfig.nationality;
+                if (conf && conf.categories) {
+                    const cat = conf.categories.find(c => c.names && c.names.indexOf(cn) !== -1);
+                    if (cat && cat.label && cat.label.en) return cat.label.en;
+                }
+                return NATL_EN_FALLBACK[cn] || rawEn || cn;
+            };
+
             const populateOptions = (artists) => {
                 const lang = window.currentLanguage || 'zh';
 
@@ -323,17 +451,29 @@
                 const provSet = new Set();
                 artists.forEach(a => {
                     const cn = (a.Natl_CN || '').trim();
-                    if (cn && !natlMap.has(cn)) {
-                        natlMap.set(cn, lang === 'zh' ? cn : ((a.Natl_EN || '').trim() || cn));
+                    const key = natlKey(cn);
+                    if (key && !natlMap.has(key)) {
+                        natlMap.set(key, lang === 'zh' ? key : getNatlLabel(key, (a.Natl_EN || '').trim()));
                     }
                     a._originProv = getOriginProvince(a);
                     // 籍贯选项仅统计中国籍艺术家（语言无关的 Natl_CN 判断）
                     if (cn === '中国') provSet.add(a._originProv);
                 });
-                // 国籍 value 恒为 Natl_CN（语言无关，切换语言不失配），label 按语言显示
+                // 国籍 value 语言无关；中文把「不详」置底，其余按标签排序
                 natlOptions.value = Array.from(natlMap.entries())
                     .map(([value, label]) => ({ value, label }))
-                    .sort((x, y) => (x.label < y.label ? -1 : x.label > y.label ? 1 : 0));
+                    .sort((x, y) => {
+                        if (lang === 'zh') {
+                            if (x.value === '不详' && y.value !== '不详') return 1;
+                            if (y.value === '不详' && x.value !== '不详') return -1;
+                        }
+                        return x.label < y.label ? -1 : x.label > y.label ? 1 : 0;
+                    });
+                // 首次加载默认全选；之后（如切换语言）不覆盖用户已做的选择
+                if (!natlInitialized && natlOptions.value.length > 0) {
+                    filters.Natl = natlOptions.value.map(o => o.value);
+                    natlInitialized = true;
+                }
                 // 按 ORIGIN_PROVINCES 声明顺序，只列出数据中出现的省份
                 originOptions.value = ORIGIN_PROVINCES
                     .filter(p => provSet.has(p.zh))
@@ -352,6 +492,10 @@
                     debouncedApplyFilters();
                 };
                 document.addEventListener('languageChanged', langHandler);
+                document.addEventListener('click', onDocumentClick);
+                document.addEventListener('keydown', onDocumentKeydown);
+                document.addEventListener('scroll', onDocumentScroll, true);
+                window.addEventListener('resize', onWindowResize);
 
                 artistsHandler = () => {
                     populateOptions(window.artists);
@@ -382,6 +526,7 @@
                 document.addEventListener('artistsLoaded', artistsHandler);
 
                 mapClickHandler = () => {
+                    natlPanelOpen.value = false;
                     if (window.GlobalStore && window.GlobalStore.isLeftPanelOpen) {
                         window.GlobalStore.isLeftPanelOpen = false;
                     }
@@ -399,11 +544,16 @@
             onUnmounted(() => {
                 document.removeEventListener('languageChanged', langHandler);
                 document.removeEventListener('artistsLoaded', artistsHandler);
+                document.removeEventListener('click', onDocumentClick);
+                document.removeEventListener('keydown', onDocumentKeydown);
+                document.removeEventListener('scroll', onDocumentScroll, true);
+                window.removeEventListener('resize', onWindowResize);
                 const mapEl = document.getElementById('map');
                 if (mapEl) mapEl.removeEventListener('click', mapClickHandler);
             });
 
             function closePanel() {
+                natlPanelOpen.value = false;
                 if (window.GlobalStore) {
                     window.GlobalStore.isLeftPanelOpen = false;
                 }
@@ -415,6 +565,10 @@
                 resultCount,
                 isSocialDisabled, isDensityDisabled, isDensityHidden,
                 isNatlDisabled, isOriginDisabled,
+                natlPanelOpen, natlPanelRef, natlTriggerRef,
+                natlDropdownRef, natlDropdownStyle,
+                isAllNatl, isPartialNatl, natlSummary,
+                toggleNatlPanel, selectAllNationalities,
                 t, setLayerMode, onStartYearChange, onEndYearChange, onFilterChange,
                 onNameFilterEnter, toggleAttrDisplay, restoreUnifiedSymbol,
                 closePanel,

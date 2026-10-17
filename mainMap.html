@@ -129,15 +129,42 @@
                     </select>
                 </div>
 
-                <!-- Filter 2: 国籍 + 按国籍显示 -->
-                <div class="filter-row">
-                    <label class="filter-label">{{ t('nationality') }}</label>
-                    <select v-model="filters.Natl" @change="onFilterChange" class="filter-select" :disabled="isNatlDisabled">
-                        <option value="all">{{ t('all_natl') }}</option>
-                        <option v-for="opt in natlOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                    </select>
-                    <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'nationality' }"
-                            @click="toggleAttrDisplay('nationality')">{{ t('display_by_nationality') }}</button>
+                <!-- Filter 2: 国籍（可折叠多选） + 按国籍显示 -->
+                <div class="filter-row natl-filter-row">
+                    <label class="filter-label" id="natl-filter-label">{{ t('nationality') }}</label>
+                    <div class="natl-control" ref="natlPanelRef">
+                        <div class="natl-trigger-row">
+                            <button type="button" class="filter-select natl-trigger"
+                                    ref="natlTriggerRef"
+                                    :class="{ active: natlPanelOpen }"
+                                    :disabled="isNatlDisabled"
+                                    :aria-expanded="natlPanelOpen ? 'true' : 'false'"
+                                    aria-controls="natl-checkbox-panel"
+                                    aria-labelledby="natl-filter-label"
+                                    @click="toggleNatlPanel">
+                                <span class="natl-trigger-text">{{ natlSummary }}</span>
+                                <span class="natl-trigger-arrow" aria-hidden="true">▾</span>
+                            </button>
+                            <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'nationality' }"
+                                    @click="toggleAttrDisplay('nationality')">{{ t('display_by_nationality') }}</button>
+                        </div>
+                        <teleport to="body">
+                            <div v-show="natlPanelOpen" id="natl-checkbox-panel" ref="natlDropdownRef"
+                                 class="natl-checkbox-panel" :style="natlDropdownStyle"
+                                 role="group" aria-labelledby="natl-filter-label" @click.stop>
+                                <label class="natl-checkbox-option natl-all-option">
+                                    <input type="checkbox" :checked="isAllNatl" :indeterminate="isPartialNatl"
+                                           :disabled="isNatlDisabled" @change="selectAllNationalities">
+                                    <span>{{ t('all_natl') }}</span>
+                                </label>
+                                <label v-for="opt in natlOptions" :key="opt.value" class="natl-checkbox-option">
+                                    <input type="checkbox" :value="opt.value" v-model="filters.Natl"
+                                           :disabled="isNatlDisabled" @change="onFilterChange">
+                                    <span>{{ opt.label }}</span>
+                                </label>
+                            </div>
+                        </teleport>
+                    </div>
                 </div>
 
                 <!-- Filter 3: 籍贯 + 按籍贯显示 -->
@@ -211,9 +238,9 @@
                 <div id="artist-info" v-if="artist && mode === 'artist'">
                     <p><strong>{{ t('name') }}:</strong> {{ isChinese ? artist.Name_CN : artist.Name_EN }}</p>
                     <p><strong>{{ t('sex') }}:</strong> {{ getSexLabel(artist.Sex) }}</p>
-                    <p><strong>{{ t('nationality') }}:</strong> {{ isChinese ? artist.Natl : artist.Natl_EN }}</p>
+                    <p><strong>{{ t('nationality') }}:</strong> {{ getNationalityLabel(artist) }}</p>
                     <p><strong>{{ t('years') }}:</strong> {{ artist.YOB_YOD }}</p>
-                    <p><strong>{{ t('origin') }}:</strong> {{ isChinese ? artist.Origin_CH : artist.Origin_EN }}</p>
+                    <p v-if="isChineseArtist(artist)"><strong>{{ t('origin') }}:</strong> {{ isChinese ? artist.Origin_CH : artist.Origin_EN }}</p>
                     <p><strong>{{ t('introduction') }}:</strong> {{ isChinese ? artist.Bio_CN : artist.Bio_EN }}</p>
                 </div>
                 <div id="studio-info" v-if="mode === 'studio' && studio">
@@ -246,9 +273,9 @@
                                 <div class="studio-artist-info">
                                     <p><strong>{{ t('name') }}:</strong> {{ isChinese ? entry.detail.Name_CN : entry.detail.Name_EN }}</p>
                                     <p><strong>{{ t('sex') }}:</strong> {{ getSexLabel(entry.detail.Sex) }}</p>
-                                    <p><strong>{{ t('nationality') }}:</strong> {{ isChinese ? entry.detail.Natl_CN : entry.detail.Natl_EN }}</p>
+                                    <p><strong>{{ t('nationality') }}:</strong> {{ getNationalityLabel(entry.detail) }}</p>
                                     <p><strong>{{ t('years') }}:</strong> {{ entry.detail.YOB_YOD }}</p>
-                                    <p><strong>{{ t('origin') }}:</strong> {{ isChinese ? entry.detail.Origin_CH : entry.detail.Origin_EN }}</p>
+                                    <p v-if="isChineseArtist(entry.detail)"><strong>{{ t('origin') }}:</strong> {{ isChinese ? entry.detail.Origin_CH : entry.detail.Origin_EN }}</p>
                                     <p><strong>{{ t('introduction') }}:</strong> {{ isChinese ? entry.detail.Bio_CN : entry.detail.Bio_EN }}</p>
                                 </div>
                             </div>

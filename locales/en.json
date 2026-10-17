@@ -24,6 +24,8 @@
   "all_sex": "All Genders",
   "tab_help_text": "Here is the explanation.",
   "all_natl": "All Nationalities",
+  "selected_natl_count": "{count} nationalities selected",
+  "no_natl_selected": "No nationalities selected",
   "all_period": "All Periods",
   "single_year": "Single Year:",
   "select_year": "Select Year",

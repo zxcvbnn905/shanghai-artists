@@ -24,6 +24,8 @@
   "all_sex": "所有性别",
   "tab_help_text": "此处是说明文字。",
   "all_natl": "所有国籍",
+  "selected_natl_count": "已选 {count} 个国籍",
+  "no_natl_selected": "未选择国籍",
   "all_period": "所有时期",
   "single_year": "单一年份:",
   "select_year": "选择年份",
