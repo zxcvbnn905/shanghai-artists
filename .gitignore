@@ -6,9 +6,10 @@ cloudbase/functions/*/node_modules/
 # ===== 数据：绝不入库，部署时上传到 Cloudflare R2 =====
 data/
 
-# IDE / 编辑器
+# IDE / 编辑器 / 工具缓存
 .idea/
 .claude/
+.impeccable/
 .vscode/
 *.iml
 
