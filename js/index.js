@@ -380,7 +380,9 @@ Vue.createApp({
         return true;
     }
 
-    function buildCarousel() {
+    // keepAutoplay: 重排（如窗口 resize）时保留正在跑的自动播放计时器，
+    // 否则每次重排都重开计时器，持续 resize 时永远等不满一轮
+    function buildCarousel(keepAutoplay) {
         // 先尝试缩放字号保持既有分页；仍装不下才按可用高度重新分页
         if (isCompactMode() || !fitContentScale()) {
             content.style.fontSize = '';
@@ -401,7 +403,18 @@ Vue.createApp({
         var showNav = slides.length > 1;
         if (dotsBox) dotsBox.style.display = showNav ? '' : 'none';
         updateSlide();
-        restartAutoplay();
+        if (!keepAutoplay) restartAutoplay();
+    }
+
+    // 旋转 / 改窗口尺寸后按新高度重排。这里不能直接调 renderContent()：
+    // 那会把轮播重置回第 1 页并重开计时器，而移动端地址栏收放、软键盘弹起
+    // 都会密集触发 resize，计时器永远等不满一轮 —— 表现为「不会自动翻页」。
+    function relayout() {
+        var keep = current;
+        var lang = currentLang();
+        if (cache[lang]) content.innerHTML = cache[lang];   // 还原原始分页后再按新高度重排
+        buildCarousel(true);
+        if (keep > 0 && slides.length > 1) goTo(Math.min(keep, slides.length - 1));
     }
 
     function updateSlide() {
@@ -541,7 +554,7 @@ Vue.createApp({
         if (!isOpen()) return;
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function () {
-            if (isOpen()) renderContent();
+            if (isOpen()) relayout();
         }, 200);
     });
 })();

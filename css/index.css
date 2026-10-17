@@ -63,7 +63,7 @@ body.reveal::before {
 
 #loading-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(203,196,178,0.9);
+    background: rgba(203,196,178,0.75);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 12px;
     font-size: 32px; font-weight: bold; color: #333;
@@ -256,17 +256,24 @@ body[data-lang="en"] .info-names {
 /* ========== 密码门禁 ========== */
 #password-gate-app {
     position: absolute;
-    right: 70px;
-    bottom: 60px;
+    right: 80px;
+    /* 70 → 80、48.4 → 58.4：整体左上各移 10px。
+       注意 gate 的 transform-origin 就在右下角，改 right/bottom 位移多少屏幕上就移多少，
+       0.75 缩放不会打折（缩放只作用于内容，右下角位置由 right/bottom 决定）。
+       其中 48.4 那一版是为了抵掉面板长高 11.6px 对标签的顶推，特此保留说明。 */
+    bottom: 58.4px;
     margin: 0;
     text-align: center;
     transform: scale(0.75);
     transform-origin: bottom right;
 }
 
+/* 面板高宽不再跟随底图 503:130 的比例：显式给高，让底图纵向拉伸，
+   从而做到「更窄更高」。内部分布按拉伸后的白区内框重新对齐。 */
 #password-panel {
     position: relative;
-    width: 260px;
+    width: 172px;
+    height: 62px;
     margin: 0 auto;
     transition: opacity 0.4s ease;
 }
@@ -274,7 +281,7 @@ body[data-lang="en"] .info-names {
 .pw-bg {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
 }
 
 .pw-label {
@@ -284,24 +291,26 @@ body[data-lang="en"] .info-names {
     margin: -8px 0 12px 0;
 }
 
+/* 输入行的定位对齐底图拉伸后的白区内框（纵向占面板 26.9%~79.2%）：
+   左右边距按面板宽等比（沿用 260px 基准的 20/22），底距让整行落在白区纵向中心。 */
 .pw-row {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 22px;
+    bottom: 18px;
+    left: 13.2px;
+    right: 14.6px;
     display: flex;
-    gap: 6px;
+    gap: 4.5px;
 }
 
 .pw-input {
     flex: 1;
     min-width: 0;
-    padding: 0 6px;
+    padding: 0 4.5px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4.5px;
     background: transparent;
     -webkit-text-security: disc;
-    font-size: 14px;
+    font-size: 12.5px;
     color: #3a2a1a;
     outline: none;
     transition: border-color 0.2s;
@@ -315,7 +324,7 @@ body[data-lang="en"] .info-names {
 }
 
 .pw-btn {
-    height: 24px;
+    height: 22px;
     cursor: pointer;
     opacity: 0.85;
     transition: opacity 0.2s;
@@ -474,7 +483,7 @@ body[data-lang="en"] .info-names {
     bottom: 18px;
     right: 18px;
     z-index: 1900;
-    width: 220px;
+    width: 176px;
     height: 57px;
     display: flex;
     align-items: center;
@@ -730,8 +739,9 @@ body[data-lang="en"] .info-names {
     /* 移动端：真正压缩密码输入区布局，为正文留空间 */
     #password-gate-app {
         margin: 0;
-        right: 45px;
-        bottom: 52px;
+        right: 55px;
+        /* 45 → 55、41 → 51：与大屏一致，整体左上各移 10px */
+        bottom: 51px;
         transform: none;
     }
 
@@ -744,7 +754,8 @@ body[data-lang="en"] .info-names {
     }
 
     #password-panel {
-        width: 160px;
+        width: 106px;
+        height: 42px;
     }
 
     .pw-label {
@@ -753,18 +764,13 @@ body[data-lang="en"] .info-names {
     }
 
     .pw-row {
-        bottom: 8px;
-        left: 12px;
-        right: 12px;
+        bottom: 12px;
+        left: 8px;
+        right: 8px;
     }
 
     .pw-btn {
-        height: 18px;
-        transform: translateY(-2px);
-    }
-
-    .pw-input {
-        transform: translateY(-2px);
+        height: 15px;
     }
 
     #about-close {

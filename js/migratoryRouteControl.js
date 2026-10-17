@@ -196,6 +196,9 @@
                 'pointer-events:none;' +
                 'text-align:center;' +
                 'line-height:1.2;' +
+                // 限宽（em 随标签字号缩放）：历史地址中文中位 10 字、英文中位 42 字符，
+                // 不限宽会在单行拖出很长一条。限宽后长地址自动折行，短地址仍单行。
+                'max-width:12em;' +
                 'display:none;' +
                 (isStart ? 'display:table;background-color:#FFF1B3;border-radius:6px;padding:4px 8px;' : '');
             if (isStart) wrapper.style.display = 'none';
@@ -208,7 +211,6 @@
             var histDiv = document.createElement('div');
             histDiv.className = 'period-hist-addr';
             histDiv.textContent = text.histAdd;
-            histDiv.style.cssText = 'white-space:nowrap;';
             wrapper.appendChild(histDiv);
 
             container.appendChild(wrapper);

@@ -1,5 +1,5 @@
 {
-  "title": "Map of Artists in Republican Shanghai",
+  "title": "Mapping Artists in Republican Shanghai",
   "about_button": "About",
   "search_placeholder": "Search by name...",
   "search_button": "Search",
@@ -7,7 +7,7 @@
   "language_toggle": "中",
   "name": "Name",
   "studio_name": "Studio Name",
-  "sex": "Sex",
+  "sex": "Gender",
   "male": "Male",
   "female": "Female",
   "unknown": "Unknown",

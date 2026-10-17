@@ -3,6 +3,7 @@ function parseCsvData(filePath) {
         Papa.parse(window.dataUrl ? window.dataUrl(filePath) : filePath, {
             download: true,
             header: true,
+            skipEmptyLines: true,
             complete: function(results) {
                 console.log("Parsed CSV data:", results.data);
                 resolve(results.data);

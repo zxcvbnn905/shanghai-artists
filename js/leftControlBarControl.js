@@ -118,7 +118,9 @@
                 }
 
                 const filteredArtists = window.artists.filter(artist => {
-                    if (filters.Sex !== 'all' && artist.Sex !== filters.Sex) return false;
+                    // CSV 中 Sex 为大写 M/F/Unknown，下拉框值为小写；空值按"不详"处理
+                    const sex = (artist.Sex || '').trim().toLowerCase() || 'unknown';
+                    if (filters.Sex !== 'all' && sex !== filters.Sex) return false;
                     if (filters.Natl !== 'all' && (artist.Natl_CN || '').trim() !== filters.Natl) return false;
                     if (filters.Origin !== 'all' && artist._originProv !== filters.Origin) return false;
 
