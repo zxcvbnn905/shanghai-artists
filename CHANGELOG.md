@@ -3,7 +3,7 @@
 本文件记录项目的每一次 bug 修复与新增功能。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，日期格式为 `YYYY-MM-DD`。
 
-## [未发布]
+## [2026-10-18]
 
 ### 修复
 - 右侧信息栏国籍显示为空：原绑定 `artist.Natl` 从未赋值，现改用 `Natl_CN`/`Natl_EN`，英文按国籍图例显示全称；外国艺术家不再显示「籍贯」行（主艺术家信息与 studio 内联条目均生效）
