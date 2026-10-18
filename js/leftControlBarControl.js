@@ -12,6 +12,25 @@
     let fuse = null;
     let studioFuse = null;
 
+    // 中国艺术家的英文名固定为「姓, 名」格式；去掉标点和空格后再比较，
+    // 使 "YanShian"、"Yan Shian" 都能匹配 "Yan, Shi'an"
+    const normalizeEnName = (value) => (value || '')
+        .toLowerCase()
+        .replace(/[’'`]/g, '')
+        .replace(/[.,\s]/g, '');
+
+    const isChineseArtist = (artist) =>
+        (artist.Natl_EN || '').trim().toUpperCase() === 'CHN' ||
+        (artist.Natl_CN || '').trim() === '中国';
+
+    const enNameNorm = (artist) => {
+        if (!isChineseArtist(artist)) return '';
+        if (artist._Name_EN_norm === undefined) {
+            artist._Name_EN_norm = normalizeEnName(artist.Name_EN);
+        }
+        return artist._Name_EN_norm;
+    };
+
     const initFuse = () => {
         if (window.artists && window.artists.length > 0) {
             fuse = new Fuse(window.artists, {
@@ -155,8 +174,14 @@
                 const sYear = parseInt(startYear.value, 10);
                 const eYear = parseInt(endYear.value, 10);
                 const nameQuery = nameFilter.value.trim().toLowerCase();
+                const normNameQuery = normalizeEnName(nameFilter.value);
                 const studioQuery = studioNameFilter.value.trim().toLowerCase();
                 const selectedNatl = filters.Natl;
+
+                // 去掉标点和空格后完全一致的中国艺术家姓名优先于模糊匹配
+                const normalizedMatchIds = normNameQuery
+                    ? new Set(window.artists.filter(a => enNameNorm(a) === normNameQuery).map(a => a.ID))
+                    : null;
 
                 const fuzzyMatchIds = (nameQuery && fuse)
                     ? pickFuzzyMatches(fuse, nameQuery, window.artists)
@@ -187,12 +212,17 @@
                     }
 
                     if (nameQuery) {
-                        if (fuzzyMatchIds) {
+                        if (normalizedMatchIds && normalizedMatchIds.size > 0) {
+                            if (!normalizedMatchIds.has(artist.ID)) return false;
+                        } else if (fuzzyMatchIds) {
                             if (!fuzzyMatchIds.has(artist.ID)) return false;
                         } else {
                             const cn = (artist.Name_CN || '').toLowerCase();
                             const en = (artist.Name_EN || '').toLowerCase();
-                            if (!cn.includes(nameQuery) && !en.includes(nameQuery)) return false;
+                            const enNorm = enNameNorm(artist);
+                            const enMatch = en.includes(nameQuery) ||
+                                (normNameQuery && enNorm.includes(normNameQuery));
+                            if (!cn.includes(nameQuery) && !enMatch) return false;
                         }
                     }
 

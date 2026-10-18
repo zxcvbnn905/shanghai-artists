@@ -32,18 +32,29 @@
 <body data-lang="zh" style="display:none">
     <script>
         (function(){
-            var fromIndex = sessionStorage.getItem('artist_map_unlocked');
-            var active = sessionStorage.getItem('artist_map_active');
-            if (fromIndex === 'true') {
-                // 首次从 index 跳转过来，消费一次性令牌，设活跃标记
-                sessionStorage.removeItem('artist_map_unlocked');
-                sessionStorage.setItem('artist_map_active', 'true');
-                document.body.style.display = '';
-            } else if (active === 'true') {
-                // 同会话内刷新，放行
-                document.body.style.display = '';
-            } else {
-                // 无有效令牌 → 回 index
+            try {
+                var fromIndex = sessionStorage.getItem('artist_map_unlocked');
+                var active = sessionStorage.getItem('artist_map_active');
+                // 远程后端必须持有访问令牌；本地相对路径模式（API_BASE 为空）不需要
+                var needsToken = !!(window.API_BASE);
+                var hasToken = !!sessionStorage.getItem('artist_map_access_token');
+                var authorized = !needsToken || hasToken;
+
+                if (authorized && fromIndex === 'true') {
+                    // 首次从 index 跳转过来，消费一次性令牌，设活跃标记
+                    sessionStorage.removeItem('artist_map_unlocked');
+                    sessionStorage.setItem('artist_map_active', 'true');
+                    document.body.style.display = '';
+                } else if (authorized && active === 'true') {
+                    // 同会话内刷新，放行
+                    document.body.style.display = '';
+                } else {
+                    // 无有效通行标记或令牌已失效 → 回 index 重新验证
+                    sessionStorage.removeItem('artist_map_active');
+                    location.replace('index.html');
+                }
+            } catch (e) {
+                // sessionStorage 不可用，无法校验通行状态
                 location.replace('index.html');
             }
         })();

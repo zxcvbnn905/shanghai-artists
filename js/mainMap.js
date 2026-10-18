@@ -12,6 +12,26 @@ window.allStudiosData = {};
 window.studioMarkersOnScreen = {};
 window.currentFilteredStudios = [];
 
+// 地图或数据加载失败时不要让用户永久卡在加载遮罩上
+window.showMapLoadError = function(message) {
+    const loader = document.getElementById('main-map-loader');
+    if (!loader) return;
+    loader.innerHTML = '';
+    const box = document.createElement('div');
+    box.style.cssText = 'max-width:80%;font-size:20px;line-height:1.6;text-align:center;color:#333;';
+    box.textContent = message ||
+        '地图加载失败，请刷新页面或返回首页重新验证 / Failed to load the map. Please refresh or sign in again.';
+    loader.appendChild(box);
+    loader.style.display = 'flex';
+    loader.style.cursor = 'default';
+};
+
+if (typeof mapboxgl === 'undefined') {
+    console.error('Mapbox GL JS failed to load.');
+    window.showMapLoadError('地图组件加载失败，请检查网络后刷新 / Failed to load the map library. Please check your connection and refresh.');
+    throw new Error('Mapbox GL JS is not available');
+}
+
 // Mapbox 访问令牌由后端在登录时下发、存入 sessionStorage（见 js/auth.js），不硬编码在仓库里。
 // 用户必经 index.html 的密码门，所以这里同步读取即可。
 mapboxgl.accessToken = (function () { try { return sessionStorage.getItem('artist_map_mapbox_token') || ''; } catch (e) { return ''; } })();
@@ -51,22 +71,44 @@ const shanghaiBounds = [
     122.25, 31.95
 ];
 
-window.map = new mapboxgl.Map({
-    container: 'map',
-    style: _initStyleUrl,
-    center: [121.4737, 31.2304],
-    zoom: 11,
-    projection: 'mercator',
-    maxBounds: shanghaiBounds,
-    pitch: 0,
-    maxPitch: 0,
-    minPitch: 0,
-    bearing: 0,
-    dragRotate: false,
-    dragPitch: false,
-    touchPitch: false,
-    localIdeographFontFamily: false
-});
+var _mapReady = false;
+var _mapLoadWatchdog = setTimeout(function() {
+    if (_mapReady) return;
+    console.error('Map load timed out before the initial load event.');
+    window.showMapLoadError('地图加载超时，请检查网络后刷新 / Map load timed out. Please check your connection and refresh.');
+}, 15000);
+var _dataLoadWatchdog = null;
+
+if (!mapboxgl.accessToken) {
+    clearTimeout(_mapLoadWatchdog);
+    console.error('Missing Mapbox access token; map cannot start.');
+    window.showMapLoadError('地图凭证缺失，请返回首页重新验证 / Map access token is missing. Please sign in again.');
+    throw new Error('Missing Mapbox access token');
+}
+
+try {
+    window.map = new mapboxgl.Map({
+        container: 'map',
+        style: _initStyleUrl,
+        center: [121.4737, 31.2304],
+        zoom: 11,
+        projection: 'mercator',
+        maxBounds: shanghaiBounds,
+        pitch: 0,
+        maxPitch: 0,
+        minPitch: 0,
+        bearing: 0,
+        dragRotate: false,
+        dragPitch: false,
+        touchPitch: false,
+        localIdeographFontFamily: false
+    });
+} catch (err) {
+    clearTimeout(_mapLoadWatchdog);
+    console.error('Failed to initialize map:', err);
+    window.showMapLoadError('地图初始化失败，请返回首页重新验证 / Failed to initialize the map. Please sign in again.');
+    throw err;
+}
 
 window.force2D = function() {
     if (!window.map) return;
@@ -155,6 +197,12 @@ window.updateMapLanguage = function(lang) {
 };
 
 window.map.on('load', async () => {
+    _mapReady = true;
+    clearTimeout(_mapLoadWatchdog);
+    _dataLoadWatchdog = setTimeout(function() {
+        window.showMapLoadError('地图数据加载超时，请检查网络后刷新 / Map data loading timed out. Please check your connection and refresh.');
+    }, 20000);
+
     window.map.touchZoomRotate.disableRotation();
     window.force2D();
 
@@ -165,8 +213,15 @@ window.map.on('load', async () => {
         const cacheKey = 'csv_' + filename.replace(/[^a-zA-Z0-9]/g, '_');
         try {
             const cached = sessionStorage.getItem(cacheKey);
-            if (cached) return JSON.parse(cached);
-        } catch(e) {}
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                // 旧版本可能把失败后的空结果写进缓存，遇到空数据直接重新拉取
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                sessionStorage.removeItem(cacheKey);
+            }
+        } catch(e) {
+            try { sessionStorage.removeItem(cacheKey); } catch(e2) {}
+        }
         const data = await parseCsvData(filename);
         try {
             sessionStorage.setItem(cacheKey, JSON.stringify(data));
@@ -300,6 +355,7 @@ window.map.on('load', async () => {
 
         document.dispatchEvent(new CustomEvent('artistsLoaded'));
 
+        clearTimeout(_dataLoadWatchdog);
         const loader = document.getElementById('main-map-loader');
         if (loader) {
             loader.style.display = 'none';
@@ -307,11 +363,10 @@ window.map.on('load', async () => {
         sessionStorage.removeItem('fromIndex');
 
     } catch (error) {
+        clearTimeout(_mapLoadWatchdog);
+        clearTimeout(_dataLoadWatchdog);
         console.error("An error occurred during map load:", error);
-        const loader = document.getElementById('main-map-loader');
-        if (loader) {
-            loader.style.display = 'none';
-        }
+        window.showMapLoadError('地图数据加载失败，请刷新重试 / Failed to load map data. Please refresh and try again.');
         sessionStorage.removeItem('fromIndex');
     }
 });

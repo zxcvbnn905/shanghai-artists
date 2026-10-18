@@ -18,6 +18,10 @@ const DOC_ID = 'auth';
 const AUTH_DEFAULT = { accessPasswordHash: null, admins: [], kver: 1 };
 
 const TOKEN_SECRET = process.env.TOKEN_SECRET || '';
+if (!TOKEN_SECRET || TOKEN_SECRET.length < 32) {
+  // 空密钥会让所有人伪造 token；缺失/过短时直接拒绝启动，而不是带病运行
+  throw new Error('[api] TOKEN_SECRET 未配置或过短（至少 32 个字符），已拒绝启动');
+}
 const ACCESS_TOKEN_TTL = Number(process.env.ACCESS_TOKEN_TTL || 43200);
 const ADMIN_TOKEN_TTL = Number(process.env.ADMIN_TOKEN_TTL || 28800);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';

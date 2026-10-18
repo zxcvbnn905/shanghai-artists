@@ -5,6 +5,25 @@
     window.lastSearchArtists = null;
     let fuseInitRetryTimer = null;
 
+    // 中国艺术家的英文名固定为「姓, 名」格式；去掉标点和空格后再比较，
+    // 使 "YanShian"、"Yan Shian" 都能匹配 "Yan, Shi'an"
+    const normalizeEnName = (value) => (value || '')
+        .toLowerCase()
+        .replace(/[’'`]/g, '')
+        .replace(/[.,\s]/g, '');
+
+    const isChineseArtist = (artist) =>
+        (artist.Natl_EN || '').trim().toUpperCase() === 'CHN' ||
+        (artist.Natl_CN || '').trim() === '中国';
+
+    const enNameNorm = (artist) => {
+        if (!isChineseArtist(artist)) return '';
+        if (artist._Name_EN_norm === undefined) {
+            artist._Name_EN_norm = normalizeEnName(artist.Name_EN);
+        }
+        return artist._Name_EN_norm;
+    };
+
     const initFuse = (allowRetry = false) => {
         const allPoints = (window.artists || []).concat(window.studios || []);
         if (allPoints.length > 0) {
@@ -86,9 +105,11 @@
         if (!fuse) initFuse(false);
 
         const allPoints = (window.artists || []).concat(window.studios || []);
+        const normalizedQuery = normalizeEnName(query);
         let exactMatches = allPoints.filter(a =>
             (a.Name_CN && a.Name_CN.trim() === query) ||
-            (a.Name_EN && a.Name_EN.trim().toLowerCase() === query.toLowerCase())
+            (a.Name_EN && a.Name_EN.trim().toLowerCase() === query.toLowerCase()) ||
+            (normalizedQuery && enNameNorm(a) === normalizedQuery)
         );
 
         let matchedPoints;

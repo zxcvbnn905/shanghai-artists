@@ -10,6 +10,12 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const cors = corsHeaders(origin, env.ALLOWED_ORIGIN);
 
+    // 密钥缺失时令牌签名/校验都不可信，直接以明确错误拒绝服务
+    if (!env.TOKEN_SECRET || env.TOKEN_SECRET.length < 32) {
+      console.error('TOKEN_SECRET is missing or shorter than 32 characters.');
+      return new Response('Server misconfigured', { status: 500, headers: cors });
+    }
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }

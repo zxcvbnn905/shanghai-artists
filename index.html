@@ -24,7 +24,13 @@
         <img src="assets/others/rotatePhone.svg" alt="">
         <p data-i18n-key="rotate_hint">旋转以获得最佳体验</p>
     </div>
-    <script>sessionStorage.removeItem('artist_map_unlocked');</script>
+    <script>
+        // 回到首页即作废地图页的通行标记，再次进入必须重新验证
+        try {
+            sessionStorage.removeItem('artist_map_unlocked');
+            sessionStorage.removeItem('artist_map_active');
+        } catch (e) {}
+    </script>
     <div id="map-wrapper">
         <div id="map-container">
             <div id="map" class="historical-map"></div>

@@ -30,6 +30,8 @@
         dimCanvas: null,
         dimCtx: null,
         dimPaths: null,
+        dimMoveHandler: null,
+        dimResizeHandler: null,
         periodTextContainer: null,
         periodTextLabels: null,
         periodTextFeatures: null,
@@ -80,18 +82,20 @@
         State.dimCanvas = canvas;
         State.dimCtx = canvas.getContext('2d');
 
-        // 地图移动/缩放时重绘
-        var redraw = function() { renderMigrationDim(State.dimPaths); };
-        window.map.on('move', redraw);
-        window.map.on('resize', function() {
+        // 地图移动/缩放时重绘（保存引用，清理时必须 off，避免监听器累积）
+        State.dimMoveHandler = function() { renderMigrationDim(State.dimPaths); };
+        State.dimResizeHandler = function() {
             var cs = State.dimCanvas;
+            if (!cs) return;
             var rect = mapContainer.getBoundingClientRect();
             cs.width = rect.width * (window.devicePixelRatio || 1);
             cs.height = rect.height * (window.devicePixelRatio || 1);
             cs.style.width = rect.width + 'px';
             cs.style.height = rect.height + 'px';
-            redraw();
-        });
+            State.dimMoveHandler();
+        };
+        window.map.on('move', State.dimMoveHandler);
+        window.map.on('resize', State.dimResizeHandler);
         // 初始化尺寸
         var rect = mapContainer.getBoundingClientRect();
         canvas.width = rect.width * (window.devicePixelRatio || 1);
@@ -147,6 +151,16 @@
     }
 
     function clearMigrationDimCanvas() {
+        if (window.map) {
+            if (State.dimMoveHandler) {
+                window.map.off('move', State.dimMoveHandler);
+                State.dimMoveHandler = null;
+            }
+            if (State.dimResizeHandler) {
+                window.map.off('resize', State.dimResizeHandler);
+                State.dimResizeHandler = null;
+            }
+        }
         if (State.dimCanvas) {
             var ctx = State.dimCtx;
             if (ctx) {
@@ -1059,6 +1073,12 @@
             } else {
                 routedConnections.push({ start: conn.start, end: conn.end, path: [conn.start.coords, conn.end.coords] });
             }
+        }
+
+        // 没有可绘制的路线（如只有一处住址）：不要进入迁移态，避免全图变暗/标点被隐藏
+        if (routedConnections.length === 0) {
+            clearArrowConnections();
+            return;
         }
 
         const map = window.map;

@@ -46,6 +46,8 @@ window.BACKENDS = {
             sessionStorage.removeItem('artist_map_access_token');
             sessionStorage.removeItem('artist_map_admin_session');
             sessionStorage.removeItem('artist_map_mapbox_token');
+            // 令牌已失效，同时作废地图页的一次性通行标记，强制回首页重新验证
+            sessionStorage.removeItem('artist_map_active');
             sessionStorage.setItem(SS_ACTIVE, chosen);
         }
     } catch (e) {}
