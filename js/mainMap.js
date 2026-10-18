@@ -39,7 +39,6 @@ mapboxgl.accessToken = (function () { try { return sessionStorage.getItem('artis
 // 根据URL参数确定初始地图样式，避免加载后不必要的样式切换
 var _initParams = new URLSearchParams(window.location.search);
 var _initYear = _initParams.get('year');
-var _initLang = _initParams.get('lang') || window.currentLanguage || 'zh';
 
 var _MAP_URLS = {
     map_1: 'mapbox://styles/atlaskwok/cmngsotw5000n01qwe1t4aylb',
@@ -48,8 +47,9 @@ var _MAP_URLS = {
     map_3_en: 'mapbox://styles/atlaskwok/cmngsa8a700cm01qq8o71bqy1'
 };
 
-var _initStyleName = 'map_3';
-var _initStyleUrl = _initLang === 'zh' ? _MAP_URLS.map_3_zh : _MAP_URLS.map_3_en;
+// 默认打开 1937 年历史地图；带 ?year= 时仍按年份选择
+var _initStyleName = 'map_1';
+var _initStyleUrl = _MAP_URLS.map_1;
 
 if (_initYear) {
     var _y = parseInt(_initYear, 10);
@@ -361,6 +361,11 @@ window.map.on('load', async () => {
             loader.style.display = 'none';
         }
         sessionStorage.removeItem('fromIndex');
+
+        // 默认样式是历史地图时，叠加对应年份的街道图层（带 ?year 时由左侧栏逻辑处理）
+        if (!_initYear && _initStyleName !== 'map_3' && typeof window.switchMapStyle === 'function') {
+            window.switchMapStyle(_initStyleName);
+        }
 
     } catch (error) {
         clearTimeout(_mapLoadWatchdog);

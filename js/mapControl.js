@@ -643,7 +643,7 @@ function addClusteredLayers() {
     }
 }
 
-window.resetMapSelection = function() {
+window.resetMapSelection = function(skipReapply) {
     window._clickMenuActive = false;
     if (window.currentSelectedMarker && window.markersOnScreen[window.currentSelectedMarker]) {
          window.markersOnScreen[window.currentSelectedMarker].getElement().classList.remove('selected-marker');
@@ -672,7 +672,8 @@ window.resetMapSelection = function() {
         window.MigratoryRoute.clearArrowConnections();
     }
     window.temporaryVisibleArtists = [];
-    if (typeof window.applyFilters === 'function') {
+    // skipReapply：由 applyFilters 内部调用时避免递归
+    if (!skipReapply && typeof window.applyFilters === 'function') {
         window.applyFilters();
     }
 
@@ -768,6 +769,29 @@ const mapStyles = {
     }
 };
 
+// 样式切换期间 addSource/addLayer 会失败；等待 style.load 或 idle（带超时兜底）
+function waitForMapStyleReady() {
+    if (!window.map || !window.map.isStyleLoaded || window.map.isStyleLoaded()) {
+        return Promise.resolve();
+    }
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (window.map) {
+                window.map.off('style.load', finish);
+                window.map.off('idle', finish);
+            }
+            resolve();
+        };
+        const timer = setTimeout(finish, 4000);
+        window.map.once('style.load', finish);
+        window.map.once('idle', finish);
+    });
+}
+
 async function loadShanghaiMap1937() {
     try {
         let beforeLayerId1937 = undefined;
@@ -803,12 +827,14 @@ async function loadShanghaiMap1937() {
 
             window._1937RoadGeoJSON = geojson;
 
+            await waitForMapStyleReady();
             window.map.addSource('shanghai-1937-street-source', {
                 type: 'geojson',
                 data: geojson
             });
         }
 
+        await waitForMapStyleReady();
         if (!window.map.getLayer('shanghai-1937-street-layer')) {
             window.map.addLayer({
                 'id': 'shanghai-1937-street-layer',
@@ -894,12 +920,14 @@ async function loadShanghaiMap1947() {
 
             window._1947RoadGeoJSON = geojson;
 
+            await waitForMapStyleReady();
             window.map.addSource('shanghai-1947-street-source', {
                 type: 'geojson',
                 data: geojson
             });
         }
 
+        await waitForMapStyleReady();
         if (!window.map.getLayer('shanghai-1947-street-layer')) {
             window.map.addLayer({
                 'id': 'shanghai-1947-street-layer',
@@ -981,7 +1009,9 @@ function rerenderActiveMigrationRoutes() {
     }
 }
 
-function handleHistoricalLayers(styleName) {
+var _mapStyleGeneration = 0;
+
+function handleHistoricalLayers(styleName, generation) {
     const setVisibility = (layerId, isVisible) => {
         if (window.map && window.map.getLayer(layerId)) {
             console.log(layerId, isVisible);
@@ -989,8 +1019,16 @@ function handleHistoricalLayers(styleName) {
         }
     };
 
+    // 等待加载期间样式可能又切换了；代次不一致时旧结果只能隐藏，不能改可见性/路网
+    const isStale = () => generation !== undefined && generation !== _mapStyleGeneration;
+
     if (styleName === 'map_1') {
         loadShanghaiMap1937().then(() => {
+            if (isStale()) {
+                setVisibility('shanghai-1937-street-layer', false);
+                setVisibility('shanghai-1937-street-labels', false);
+                return;
+            }
             setVisibility('shanghai-1937-street-layer', true);
             setVisibility('shanghai-1937-street-labels', true);
             setVisibility('shanghai-1947-street-layer', false);
@@ -1003,6 +1041,11 @@ function handleHistoricalLayers(styleName) {
         });
     } else if (styleName === 'map_2') {
         loadShanghaiMap1947().then(() => {
+            if (isStale()) {
+                setVisibility('shanghai-1947-street-layer', false);
+                setVisibility('shanghai-1947-street-labels', false);
+                return;
+            }
             setVisibility('shanghai-1947-street-layer', true);
             setVisibility('shanghai-1947-street-labels', true);
             setVisibility('shanghai-1937-street-layer', false);
@@ -1024,6 +1067,66 @@ function handleHistoricalLayers(styleName) {
     }
 }
 
+var _lastInitializedStyleGeneration = 0;
+
+// 样式加载完成后的统一初始化；按代次去重，旧代次的任务直接跳过
+function runStyleInit(generation) {
+    if (generation !== _mapStyleGeneration) return;
+    if (generation === _lastInitializedStyleGeneration) return;
+    _lastInitializedStyleGeneration = generation;
+
+    if (typeof window.force2D === 'function') {
+        window.force2D();
+    }
+
+    // 强制清除旧的marker，防止残留
+    if (window.markersOnScreen) {
+        for (const id in window.markersOnScreen) {
+            window.markersOnScreen[id].remove();
+        }
+        window.markersOnScreen = {};
+    }
+
+    const currentLang = window.currentLanguage || 'zh';
+    if (typeof window.updateMapLanguage === 'function') {
+        window.updateMapLanguage(currentLang);
+    }
+
+    // 重新添加聚合图层
+    if (typeof addClusteredLayers === 'function') {
+        addClusteredLayers();
+    }
+
+    // 恢复连线图层数据
+    if (typeof applyFilters === 'function') {
+        try {
+            applyFilters();
+        } catch (e) {
+            console.error('Failed to restore relationships layer:', e);
+        }
+    }
+
+    // 重新添加密度图层
+    if (typeof window.addDensityLayer === 'function') {
+        try {
+            window.addDensityLayer();
+        } catch (e) {
+            console.error('Failed to add density layer:', e);
+        }
+    }
+
+    // 恢复搜索结果的视觉效果
+    if (typeof window.restoreSearchVisuals === 'function') {
+        try {
+            window.restoreSearchVisuals();
+        } catch (e) {
+            console.error('Failed to restore search visuals:', e);
+        }
+    }
+
+    handleHistoricalLayers(currentActiveStyleName, generation);
+}
+
 function switchMapStyle(styleName, lang = window.currentLanguage || 'zh') {
     let styleUrl = mapStyles[styleName];
     if (typeof styleUrl === 'object') {
@@ -1032,6 +1135,7 @@ function switchMapStyle(styleName, lang = window.currentLanguage || 'zh') {
 
     if (styleUrl) {
         currentActiveStyleName = styleName;
+        const generation = ++_mapStyleGeneration;
 
         if (window.currentMapStyleUrl !== styleUrl) {
             window.currentMapStyleUrl = styleUrl;
@@ -1043,63 +1147,16 @@ function switchMapStyle(styleName, lang = window.currentLanguage || 'zh') {
             }
 
             window.map.once('style.load', () => {
-                 // 再次强制
-                 if (typeof window.force2D === 'function') {
-                    window.force2D();
-                 }
-
-                 // 强制清除旧的marker，防止残留
-                 if (window.markersOnScreen) {
-                     for (const id in window.markersOnScreen) {
-                         window.markersOnScreen[id].remove();
-                     }
-                     window.markersOnScreen = {};
-                 }
-
-                 const currentLang = window.currentLanguage || 'zh';
-                 if (typeof window.updateMapLanguage === 'function') {
-                    window.updateMapLanguage(currentLang);
-                 }
-
-                 // 重新添加聚合图层
-                 if (typeof addClusteredLayers === 'function') {
-                     addClusteredLayers();
-                 }
-
-                 // 恢复连线图层数据
-                 if (typeof applyFilters === 'function') {
-                     try {
-                         applyFilters();
-                     } catch (e) {
-                         console.error('Failed to restore relationships layer:', e);
-                     }
-                 }
-
-                 // 重新添加密度图层
-                 if (typeof window.addDensityLayer === 'function') {
-                     try {
-                         window.addDensityLayer();
-                     } catch (e) {
-                         console.error('Failed to add density layer:', e);
-                     }
-                 }
-
-                 // 恢复搜索结果的视觉效果
-                 if (typeof window.restoreSearchVisuals === 'function') {
-                     try {
-                         window.restoreSearchVisuals();
-                     } catch (e) {
-                         console.error('Failed to restore search visuals:', e);
-                     }
-                 }
-
-                 handleHistoricalLayers(styleName);
+                // 期间切到别的 style URL 时由新请求负责；同一 URL 的后续切换会走下面的等待分支
+                if (window.currentMapStyleUrl !== styleUrl) return;
+                runStyleInit(generation);
             });
         } else {
-            handleHistoricalLayers(styleName);
-            if (typeof window.updateMapLanguage === 'function') {
-                window.updateMapLanguage(lang);
-            }
+            // map_1 / map_2 共用同一 style URL：等样式就绪后按最新代次初始化
+            waitForMapStyleReady().then(() => {
+                if (window.currentMapStyleUrl !== styleUrl) return;
+                runStyleInit(generation);
+            });
         }
 
         if (typeof window.vueMapSwitchHook === 'function') {

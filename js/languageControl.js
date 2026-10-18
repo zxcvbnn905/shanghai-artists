@@ -8,21 +8,48 @@ if (typeof Vue !== 'undefined' && Vue.reactive) {
     window._i18nTick = { n: 0 };
 }
 
-async function setLanguage(lang) {
-    if (lang === currentLanguage && translations[lang]) {
-        return;
-    }
+let languageRequestId = 0;
+
+function applyLanguage(lang) {
     currentLanguage = lang;
     // 同步响应式全局语言状态，各组件通过此属性自动响应
     if (window.GlobalStore) {
         window.GlobalStore.language = lang;
     }
-    const response = await fetch(`locales/${lang}.json`);
-    translations[lang] = await response.json();
     updateContent();
 
     if (window.map && typeof window.updateMapLanguage === 'function') {
         window.updateMapLanguage(lang);
+    }
+}
+
+async function setLanguage(lang) {
+    // 每次调用都推进代次：即使目标语言已缓存，也要让仍在途的旧请求失效
+    const requestId = ++languageRequestId;
+    if (lang === currentLanguage && translations[lang]) {
+        return;
+    }
+    if (translations[lang]) {
+        applyLanguage(lang);
+        return;
+    }
+
+    try {
+        const response = await fetch(`locales/${lang}.json`);
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        const data = await response.json();
+        // 快速切换时只应用最后一次请求，避免旧请求覆盖新语言
+        if (requestId !== languageRequestId) return;
+        translations[lang] = data;
+        applyLanguage(lang);
+    } catch (e) {
+        console.error('Failed to load language pack:', lang, e);
+        // 保持当前语言不变，并通知切换按钮回退到实际语言
+        if (requestId === languageRequestId) {
+            document.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: currentLanguage } }));
+        }
     }
 }
 
@@ -43,7 +70,12 @@ function updateContent() {
             element.textContent = t(key);
         }
     });
-    document.title = t('title') || document.title;
+    // admin 页的 <title> 自带 data-i18n-key，已在上面按 admin_title 更新，不能再被通用 title 覆盖
+    const titleElement = document.querySelector('title');
+    if (!titleElement || !titleElement.hasAttribute('data-i18n-key')) {
+        const localizedTitle = translations[currentLanguage] && translations[currentLanguage].title;
+        if (localizedTitle) document.title = localizedTitle;
+    }
 
     const favicon = document.getElementById('favicon');
     if (favicon) {

@@ -5,7 +5,17 @@
     font-style: normal;
 }
 
+/* 英文/拉丁字符使用青柯本悦宋；unicode-range 之外的中文继续使用 CustomArtistFont */
+@font-face {
+    font-family: 'CustomArtistLatinFont';
+    src: url('../font/FZQingKeBenYueSong.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+0020-024F, U+2013-2014, U+2018-201D, U+2026, U+20AC, U+2122;
+}
+
 /*全局字体设置*/
 * {
-    font-family: 'CustomArtistFont', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-family: 'CustomArtistLatinFont', 'CustomArtistFont', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 }

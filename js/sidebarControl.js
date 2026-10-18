@@ -1,5 +1,15 @@
 let artworkManifest = {};
 
+// manifest 到达前就打开侧栏时，作品图会缺失；到达后重渲染当前侧栏
+function refreshOpenSidebarForManifest() {
+    if (!window.GlobalStore || !window.GlobalStore.isSidebarVisible) return;
+    if (window.lastStudio && typeof window.updateStudioSidebar === 'function') {
+        window.updateStudioSidebar(window.lastStudio);
+    } else if (window.lastArtist && typeof window.updateSidebar === 'function') {
+        window.updateSidebar(window.lastArtist);
+    }
+}
+
 fetch(window.dataUrl('data/artistPicture_manifest.json'))
     .then(response => {
         if (!response.ok) {
@@ -9,6 +19,7 @@ fetch(window.dataUrl('data/artistPicture_manifest.json'))
     })
     .then(data => {
         artworkManifest = data;
+        refreshOpenSidebarForManifest();
     })
     .catch(error => console.error('Error loading artwork manifest:', error));
 

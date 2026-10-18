@@ -5,7 +5,7 @@ window.GlobalStore = Vue.reactive({
     viewerSrc: '',
     language: window.currentLanguage || 'zh',
     isPopupOpen: false,
-    currentStyle: 'map_3',
+    currentStyle: 'map_1',
     isFilterListExpanded: false,
     isLeftPanelOpen: !window.matchMedia('(max-width: 768px), (max-height: 500px)').matches,
     activeLayerMode: 'position',

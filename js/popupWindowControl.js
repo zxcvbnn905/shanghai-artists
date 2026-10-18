@@ -16,6 +16,14 @@ const PopupApp = {
         const currentArtist = ref(null);
 
         const carouselIndex = ref(0);
+        let closePopupTimer = null;
+
+        const clearClosePopupTimer = () => {
+            if (closePopupTimer) {
+                clearTimeout(closePopupTimer);
+                closePopupTimer = null;
+            }
+        };
 
         const t_local = (key) => {
             const dummy = langCounter.value;
@@ -53,7 +61,9 @@ const PopupApp = {
 
         const closePopup = () => {
             window.GlobalStore.isPopupOpen = false;
-            setTimeout(() => {
+            clearClosePopupTimer();
+            closePopupTimer = setTimeout(() => {
+                closePopupTimer = null;
                 currentArtist.value = null;
                 carouselIndex.value = 0;
                 if (typeof window.checkAndResetMapSelection === 'function') {
@@ -243,6 +253,8 @@ const PopupApp = {
         };
 
         window.showImagePopup = async (artist) => {
+            // 取消上一个关闭定时器，避免 1 秒内重新打开时被旧定时器清空
+            clearClosePopupTimer();
             currentArtist.value = artist;
             carouselIndex.value = 0;
             window.GlobalStore.isPopupOpen = true;

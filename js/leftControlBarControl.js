@@ -125,6 +125,19 @@
             const applyLayerMode = (mode) => {
                 if (!window.map) return;
                 try {
+                    // 任何模式切换都先清掉点击菜单遗留的迁徙态，让图层规则重新接管
+                    window._clickMenuActive = false;
+                    if (window.MigratoryRoute && typeof window.MigratoryRoute.clearArrowConnections === 'function') {
+                        window.MigratoryRoute.clearArrowConnections();
+                    }
+                    window.temporaryVisibleArtists = [];
+                    if (typeof window.updateMarkers === 'function' && window.currentFilteredArtists) {
+                        window.updateMarkers(window.currentFilteredArtists);
+                    }
+                    if (window.LayerControl && typeof window.LayerControl.applyLayerRules === 'function') {
+                        window.LayerControl.applyLayerRules();
+                    }
+
                     if (mode === 'position') {
                         setLayerVis('relationships-layer', false);
                         setLayerVis('density-heatmap', false);
@@ -158,7 +171,8 @@
             // 模糊搜索：前两名得分接近时不猜测，回退到子串匹配；否则返回同名记录集合
             const pickFuzzyMatches = (fuseInstance, query, items) => {
                 const results = fuseInstance.search(query);
-                if (results.length === 0) return new Set();
+                // null = 没有可信的模糊结果，交给调用方做子串回退
+                if (results.length === 0) return null;
                 if (results.length >= 2 && (results[1].score - results[0].score) < 0.05) return null;
                 const top = results[0].item;
                 const sameName = items.filter(a =>
@@ -262,6 +276,17 @@
                 });
                 if (nameQuery) filteredStudios = [];
                 window.currentFilteredStudios = filteredStudios;
+
+                // 当前选中的艺术家/工作室被筛掉时，关闭侧栏并清理选中态
+                const selectedArtist = window.GlobalStore && window.GlobalStore.selectedArtist;
+                const artistFilteredOut = selectedArtist && !filteredArtists.some(a => a.ID === selectedArtist.ID);
+                const selectedStudioId = window.currentSelectedStudio;
+                const studioFilteredOut = selectedStudioId && !filteredStudios.some(s => s.ID === selectedStudioId);
+                if ((artistFilteredOut || studioFilteredOut) && typeof window.resetMapSelection === 'function') {
+                    if (window.GlobalStore) window.GlobalStore.isSidebarVisible = false;
+                    // skipReapply：当前正在 applyFilters 中，避免递归
+                    window.resetMapSelection(true);
+                }
 
                 resultCount.value = studioQuery ? filteredStudios.length : filteredArtists.length;
 
