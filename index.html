@@ -9,8 +9,8 @@
     <meta name="referrer" content="no-referrer">
     <link rel="manifest" href="manifest.json">
     <title data-i18n-key="title">Shanghai Artist Map</title>
-    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link id="favicon" rel="icon" type="image/svg+xml" href="assets/others/stamp_CN.svg">
+    <script src="https://unpkg.com/vue@3.5.32/dist/vue.global.js"></script>
     <script src="js/store.js"></script>
     <script src="js/auth.js"></script>
 
@@ -157,7 +157,7 @@
     <audio id="bgm-audio" loop preload="auto" src="music/bgm.mp3"></audio>
 
     <!-- 静音切换按钮 -->
-    <button id="bgm-toggle" class="muted" title="播放背景音乐" aria-label="播放背景音乐">
+    <button id="bgm-toggle" class="muted" title="播放背景音乐" aria-label="播放背景音乐" data-i18n-title="bgm_play" data-i18n-aria-label="bgm_play">
         <svg viewBox="0 0 24 24" class="note-icon" fill="currentColor">
             <ellipse cx="10" cy="16" rx="4.5" ry="3.2" transform="rotate(-15, 10, 16)" />
             <line x1="13.5" y1="16" x2="13.5" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -170,13 +170,13 @@
 
     <div id="loading-overlay">
             <img src="assets/others/loading.svg" alt="loading" class="loading-spinner">
-            <span>Loading...</span>
+            <span data-i18n-key="loading_data">Loading...</span>
         </div>
 
     <!-- 项目介绍弹窗 -->
     <div id="about-overlay" role="dialog" aria-modal="true" aria-labelledby="about-content">
         <div class="about-panel">
-            <button id="about-close" type="button" aria-label="关闭弹窗">&times;</button>
+            <button id="about-close" type="button" aria-label="关闭弹窗" data-i18n-aria-label="about_close">&times;</button>
             <div id="about-content" class="about-scroll"></div>
 
             <div id="about-dots" class="about-dots"></div>
@@ -186,8 +186,10 @@
                 <div id="password-panel">
                     <img class="pw-bg" src="assets/secret.png" alt="">
                     <div class="pw-row">
-                        <input type="text" v-model="password" class="pw-input"
+                        <input type="password" v-model="password" class="pw-input"
+                               autocomplete="current-password"
                                :class="{ error: showError }"
+                               @input="onPasswordInput"
                                @keyup.enter="checkPassword" ref="pwInput">
                         <img class="pw-btn" src="assets/enter.svg" alt="" @click="checkPassword">
                     </div>

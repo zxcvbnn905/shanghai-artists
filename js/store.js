@@ -66,8 +66,20 @@ window.apiUrl = function (path) {
     return (window.API_BASE || '') + path;
 };
 
-// 拼接数据文件地址：path 以 'data/' 开头（与现有调用保持一致）。
-// 未配置 API_BASE 时原样返回（相对路径）；配置后走 Worker 并在末尾附上 token。
+// 需要鉴权的请求头：文本数据与 API 请求优先用 Authorization，避免 token 进 URL
+window.authHeaders = function () {
+    var token = window.getAccessToken();
+    return token ? { Authorization: 'Bearer ' + token } : {};
+};
+
+// 数据文件地址（不含 token）：供 fetch/文本读取使用，配合 authHeaders()
+window.dataFetchUrl = function (path) {
+    if (!window.API_BASE) return path;
+    return window.API_BASE + '/' + path;
+};
+
+// 数据文件地址（含 query token）：仅用于 <img> 等无法自定义请求头的场景。
+// 文本请求请改用 dataFetchUrl + authHeaders。
 window.dataUrl = function (path) {
     if (!window.API_BASE) return path;
     var token = window.getAccessToken();

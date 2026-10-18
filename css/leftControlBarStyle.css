@@ -6,7 +6,8 @@
     background: url('../assets/others/leftControlBackground.png') no-repeat;
     background-size: 100% 100%;
     backdrop-filter: blur(12px) saturate(180%);
-    z-index: 2147483646;
+    /* 位于弹窗（popup-overlay: 2000）之下，弹窗打开时覆盖左侧控制栏 */
+    z-index: 1900;
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
@@ -217,7 +218,8 @@
 
 .natl-checkbox-panel {
     position: fixed;
-    z-index: 2147483647;
+    /* 高于左侧控制栏(1900)，低于弹窗遮罩(2000) */
+    z-index: 1999;
     max-height: 200px;
     overflow-y: auto;
     overscroll-behavior: contain;

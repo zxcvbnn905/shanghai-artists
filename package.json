@@ -18,8 +18,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host 0.0.0.0",
     "server": "node server.js",
     "dev:full": "concurrently \"vite\" \"node server.js\"",
+    "dev:full:lan": "concurrently \"vite --host 0.0.0.0\" \"node server.js\"",
     "build": "vite build",
     "preview": "vite preview"
   },

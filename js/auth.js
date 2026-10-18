@@ -17,7 +17,9 @@
   }
 
   async function apiGet(url) {
-    var res = await fetch(window.apiUrl ? window.apiUrl(url) : url);
+    var res = await fetch(window.apiUrl ? window.apiUrl(url) : url, {
+      headers: window.authHeaders ? window.authHeaders() : {}
+    });
     return res.json();
   }
 
@@ -102,7 +104,8 @@
   }
 
   async function getAdminList(token) {
-    return apiGet('/api/admin/list?token=' + encodeURIComponent(token));
+    // token 通过 Authorization header 发送，不再拼进 URL
+    return apiGet('/api/admin/list');
   }
 
   async function addAdmin(token, username, password) {

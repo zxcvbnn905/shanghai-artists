@@ -9,13 +9,12 @@
     <meta name="referrer" content="no-referrer">
     <link rel="manifest" href="manifest.json">
     <title data-i18n-key="title">Shanghai Artist Map</title>
-    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
+    <link id="favicon" rel="icon" type="image/svg+xml" href="assets/others/stamp_CN.svg">
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet'/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
-    <script src="https://unpkg.com/shpjs@latest/dist/shp.js"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    <script src="https://unpkg.com/vue@3.5.32/dist/vue.global.js"></script>
     <script src="js/store.js"></script>
 
     <link rel="stylesheet" href="css/customFont.css">
@@ -32,30 +31,77 @@
 <body data-lang="zh" style="display:none">
     <script>
         (function(){
+            function deny() {
+                window.__gatePromise = Promise.resolve(false);
+                try {
+                    sessionStorage.removeItem('artist_map_active');
+                    sessionStorage.removeItem('artist_map_unlocked');
+                    sessionStorage.removeItem('artist_map_access_token');
+                } catch (e) {}
+                location.replace('index.html');
+            }
+
+            function enter() {
+                try {
+                    sessionStorage.removeItem('artist_map_unlocked');
+                    sessionStorage.setItem('artist_map_active', 'true');
+                } catch (e) {}
+                document.body.style.display = '';
+            }
+
             try {
                 var fromIndex = sessionStorage.getItem('artist_map_unlocked');
                 var active = sessionStorage.getItem('artist_map_active');
-                // 远程后端必须持有访问令牌；本地相对路径模式（API_BASE 为空）不需要
+                var token = sessionStorage.getItem('artist_map_access_token') || '';
+                // 远程后端必须校验访问令牌；本地相对路径模式（API_BASE 为空）不需要
                 var needsToken = !!(window.API_BASE);
-                var hasToken = !!sessionStorage.getItem('artist_map_access_token');
-                var authorized = !needsToken || hasToken;
 
-                if (authorized && fromIndex === 'true') {
-                    // 首次从 index 跳转过来，消费一次性令牌，设活跃标记
-                    sessionStorage.removeItem('artist_map_unlocked');
-                    sessionStorage.setItem('artist_map_active', 'true');
-                    document.body.style.display = '';
-                } else if (authorized && active === 'true') {
-                    // 同会话内刷新，放行
-                    document.body.style.display = '';
-                } else {
-                    // 无有效通行标记或令牌已失效 → 回 index 重新验证
-                    sessionStorage.removeItem('artist_map_active');
-                    location.replace('index.html');
+                if (!needsToken) {
+                    if (fromIndex === 'true' || active === 'true') {
+                        enter();
+                        window.__gatePromise = Promise.resolve(true);
+                    } else {
+                        deny();
+                    }
+                    return;
                 }
+
+                if ((fromIndex !== 'true' && active !== 'true') || !token) {
+                    deny();
+                    return;
+                }
+
+                // 远程后端：显示页面前向服务端校验 token，伪造 sessionStorage 会被拒绝
+                window.__gatePromise = (async function() {
+                    var timer = null;
+                    try {
+                        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                        if (controller) {
+                            timer = setTimeout(function() { controller.abort(); }, 10000);
+                        }
+                        var res = await fetch(window.API_BASE + '/api/verify-token', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: token }),
+                            signal: controller ? controller.signal : undefined
+                        });
+                        if (timer) clearTimeout(timer);
+                        var data = null;
+                        try { data = await res.json(); } catch (e) {}
+                        if (res.ok && data && data.ok) {
+                            enter();
+                            return true;
+                        }
+                        deny();
+                        return false;
+                    } catch (e) {
+                        if (timer) clearTimeout(timer);
+                        deny();
+                        return false;
+                    }
+                })();
             } catch (e) {
-                // sessionStorage 不可用，无法校验通行状态
-                location.replace('index.html');
+                deny();
             }
         })();
     </script>
@@ -99,7 +145,7 @@
                 <div class="left-panel-header">
                     <h3 data-i18n-key="settings_title">Display Settings</h3>
                     <button class="close-panel-btn" @click="closePanel">
-                        <img src="assets/arrow.svg" alt="Close">
+                        <img src="assets/arrow.svg" alt="Close" data-i18n-alt="close_dialog">
                     </button>
                 </div>
 
@@ -116,7 +162,7 @@
                         {{ t('layer_social') }}
                     </button>
                     <button class="layer-toggle-btn" :class="{ active: GlobalStore.activeLayerMode === 'density' }"
-                            @click="setLayerMode('density')" :disabled="isDensityDisabled || isDensityHidden">
+                            @click="setLayerMode('density')" :disabled="isDensityHidden">
                         <img src="assets/others/choiceDensity.svg" alt="">
                         {{ t('layer_density') }}
                     </button>
@@ -242,16 +288,16 @@
             <div id="sidebar-content">
                 <div class="artist-grid" :class="gridClasses" v-if="mode === 'artist'">
                     <div class="grid-item grid-tl">
-                        <img v-if="tlImg" :src="tlImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(tlImg)">
+                        <img v-if="tlImg" :src="tlImg" alt="Artist/Artwork" data-i18n-alt="image_alt_artist" @error="handleImgError" @click="openImage(tlImg)">
                     </div>
                     <div class="grid-item grid-tr">
-                        <img v-if="trImg" :src="trImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(trImg)">
+                        <img v-if="trImg" :src="trImg" alt="Artist/Artwork" data-i18n-alt="image_alt_artist" @error="handleImgError" @click="openImage(trImg)">
                     </div>
                     <div class="grid-item grid-bl">
-                        <img v-if="blImg" :src="blImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(blImg)">
+                        <img v-if="blImg" :src="blImg" alt="Artist/Artwork" data-i18n-alt="image_alt_artist" @error="handleImgError" @click="openImage(blImg)">
                     </div>
                     <div class="grid-item grid-br">
-                        <img v-if="brImg" :src="brImg" alt="Artist/Artwork" @error="handleImgError" @click="openImage(brImg)">
+                        <img v-if="brImg" :src="brImg" alt="Artist/Artwork" data-i18n-alt="image_alt_artist" @error="handleImgError" @click="openImage(brImg)">
                     </div>
                 </div>
                 <div id="artist-info" v-if="artist && mode === 'artist'">
@@ -371,7 +417,7 @@
                 </div>
                 <div id="popup-content">
                     <div v-if="!manifestLoaded">
-                        Picture manifest not loaded yet.
+                        <span data-i18n-key="manifest_not_loaded">Picture manifest not loaded yet.</span>
                     </div>
                     <div v-else-if="!currentArtist || !currentArtist.ID">
                     </div>
@@ -380,13 +426,13 @@
                         <template v-if="currentTab === 'historical'">
                             <div v-if="historicalImgSrc" class="carousel-item active historical-map-content" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
                                 <div class="image-wrapper" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
-                                    <img :src="historicalImgSrc" alt="History" style="max-width: 100%; max-height: 100%; object-fit: contain;" @error="handleImgError" @click="openViewer(historicalImgSrc)">
+                                    <img :src="historicalImgSrc" alt="History" data-i18n-alt="image_alt_history" style="max-width: 100%; max-height: 100%; object-fit: contain;" @error="handleImgError" @click="openViewer(historicalImgSrc)">
                                 </div>
                                 <div class="image-caption">{{ histAddressText }}</div>
                             </div>
                             <div v-else class="carousel-item active historical-map-content" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
                                 <div class="image-wrapper" style="flex: 1; display: flex; justify-content: center; align-items: center; width: 100%;">
-                                    <img src="assets/mapReplace.jpg" alt="History" style="max-width: 100%; max-height: 100%; object-fit: contain;" @click="openViewer('assets/mapReplace.jpg')">
+                                    <img src="assets/mapReplace.jpg" alt="History" data-i18n-alt="image_alt_history" style="max-width: 100%; max-height: 100%; object-fit: contain;" @click="openViewer('assets/mapReplace.jpg')">
                                 </div>
                                 <div class="image-caption">{{ histAddressText }}</div>
                             </div>
@@ -395,17 +441,17 @@
                         <template v-else-if="currentTab === 'contemporary'">
                             <div v-if="contemporaryMode === 'compare'" class="contemporary-grid mode-compare">
                                 <div class="contemporary-grid-image history-image">
-                                    <img :src="contemporaryHistoryImg" alt="History" @click="openViewer(contemporaryHistoryImg)">
+                                    <img :src="contemporaryHistoryImg" alt="History" data-i18n-alt="image_alt_history" @click="openViewer(contemporaryHistoryImg)">
                                 </div>
                                 <div class="contemporary-grid-image present-image">
-                                    <img v-if="contemporaryPresentImg" :src="contemporaryPresentImg" alt="Present" @click="openViewer(contemporaryPresentImg)">
+                                    <img v-if="contemporaryPresentImg" :src="contemporaryPresentImg" alt="Present" data-i18n-alt="image_alt_present" @click="openViewer(contemporaryPresentImg)">
                                 </div>
                                 <div class="contemporary-grid-caption">{{ histAddressText }}</div>
                                 <div class="contemporary-grid-caption">{{ currAddressText }}</div>
                             </div>
                             <div v-else-if="contemporaryMode === 'present-only'" class="contemporary-grid" style="grid-template-columns: 1fr;">
                                 <div class="contemporary-grid-image">
-                                    <img :src="contemporaryPresentImg" alt="Present" @click="openViewer(contemporaryPresentImg)">
+                                    <img :src="contemporaryPresentImg" alt="Present" data-i18n-alt="image_alt_present" @click="openViewer(contemporaryPresentImg)">
                                 </div>
                                 <div class="contemporary-grid-caption">{{ currAddressText }}</div>
                             </div>
@@ -444,7 +490,7 @@
         </div>
         <div id="image-viewer" :style="{ display: GlobalStore.isViewerOpen ? 'flex' : 'none' }" @click.self="closeViewer">
             <span class="close-viewer-btn" @click="closeViewer">&times;</span>
-            <img id="viewer-image" :src="GlobalStore.viewerSrc" alt="Full-size view">
+            <img id="viewer-image" :src="GlobalStore.viewerSrc" alt="Full-size view" data-i18n-alt="image_alt_full">
         </div>
     </div>
 

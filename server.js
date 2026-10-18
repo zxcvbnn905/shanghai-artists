@@ -57,9 +57,17 @@ function destroySession(token) {
     return sessions.delete(token);
 }
 
+// token 优先从 Authorization: Bearer 读取，兼容旧的 body/query 传法
+function tokenFromReq(req) {
+    const header = (req.headers && req.headers.authorization) || '';
+    const match = /^Bearer\s+(.+)$/i.exec(header);
+    if (match) return match[1].trim();
+    return (req.body && req.body.token) || (req.query && req.query.token) || '';
+}
+
 // ========== 中间件：验证 token ==========
 function requireAuth(req, res, next) {
-    const token = (req.body && req.body.token) || req.query.token;
+    const token = tokenFromReq(req);
     if (!token) {
         return res.json({ ok: false, error: 'missing_token' });
     }
@@ -95,10 +103,16 @@ app.post('/api/admin/login', async (req, res) => {
     res.json({ ok: true, token, role: admin.role });
 });
 
+// 校验访问/管理员 token（主页面门禁用）
+app.post('/api/verify-token', (req, res) => {
+    const session = getSession(tokenFromReq(req));
+    if (!session) return res.json({ ok: false, error: 'invalid_token' });
+    res.json({ ok: true, role: session.role });
+});
+
 // 管理员退出
 app.post('/api/admin/logout', requireAuth, (req, res) => {
-    const token = req.body.token;
-    destroySession(token);
+    destroySession(tokenFromReq(req));
     res.json({ ok: true });
 });
 
@@ -135,6 +149,9 @@ app.get('/api/admin/list', requireAuth, (req, res) => {
 
 // 添加管理员
 app.post('/api/admin/add', requireAuth, async (req, res) => {
+    if (req.session.role !== 'super_admin') {
+        return res.json({ ok: false, error: 'permission_denied' });
+    }
     const { username, password } = req.body;
     if (!username || !password) return res.json({ ok: false, error: 'empty_fields' });
     const data = readAuthData();
@@ -155,13 +172,23 @@ app.post('/api/admin/delete', requireAuth, (req, res) => {
     }
     const { username } = req.body;
     if (!username) return res.json({ ok: false, error: 'empty_username' });
-    if (username === 'admin') return res.json({ ok: false, error: 'cannot_delete_super_admin' });
+    if (username === req.session.username) {
+        return res.json({ ok: false, error: 'self_delete' });
+    }
     const data = readAuthData();
     const idx = data.admins.findIndex(a => a.username === username);
     if (idx === -1) return res.json({ ok: false, error: 'not_found' });
-    if (data.admins.length <= 1) return res.json({ ok: false, error: 'last_admin' });
+    const target = data.admins[idx];
+    const superAdminCount = data.admins.filter(a => a.role === 'super_admin').length;
+    if (target.role === 'super_admin' && superAdminCount <= 1) {
+        return res.json({ ok: false, error: 'last_super_admin' });
+    }
     data.admins.splice(idx, 1);
     writeAuthData(data);
+    // 立即销毁被删管理员的全部会话
+    for (const [token, session] of sessions) {
+        if (session.username === username) sessions.delete(token);
+    }
     res.json({ ok: true });
 });
 

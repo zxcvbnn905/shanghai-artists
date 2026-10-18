@@ -25,7 +25,10 @@ export default {
     }
 
     if (url.pathname.startsWith('/data/')) {
-      const payload = await verifyToken(env.TOKEN_SECRET, url.searchParams.get('token') || '');
+      const auth = request.headers.get('Authorization') || '';
+      const match = /^Bearer\s+(.+)$/i.exec(auth);
+      const token = (match ? match[1].trim() : '') || url.searchParams.get('token') || '';
+      const payload = await verifyToken(env.TOKEN_SECRET, token);
       if (!payload) {
         return new Response('Unauthorized', { status: 401, headers: cors });
       }

@@ -10,18 +10,26 @@ function refreshOpenSidebarForManifest() {
     }
 }
 
-fetch(window.dataUrl('data/artistPicture_manifest.json'))
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        artworkManifest = data;
-        refreshOpenSidebarForManifest();
-    })
-    .catch(error => console.error('Error loading artwork manifest:', error));
+(async function loadArtworkManifest() {
+    // 远程后端需先通过门禁校验，避免伪造 token 时提前发数据请求
+    if (window.__gatePromise) {
+        let gateOk = false;
+        try { gateOk = await window.__gatePromise; } catch (e) { gateOk = false; }
+        if (gateOk === false) return;
+    }
+    fetch(window.dataFetchUrl('data/artistPicture_manifest.json'), { headers: window.authHeaders() })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            artworkManifest = data;
+            refreshOpenSidebarForManifest();
+        })
+        .catch(error => console.error('Error loading artwork manifest:', error));
+})();
 
 (function() {
     const { createApp, ref, computed, onMounted, onUnmounted } = Vue;

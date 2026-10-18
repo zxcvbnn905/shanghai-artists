@@ -35,8 +35,11 @@ function json(obj, cors, status = 200) {
   });
 }
 
-// token 来自 POST body 或 query（与原前端调用方式一致）
-function tokenFrom(url, body) {
+// token 优先取 Authorization: Bearer，兼容旧的 body/query 传法
+function tokenFrom(request, url, body) {
+  const auth = request.headers.get('Authorization') || '';
+  const match = /^Bearer\s+(.+)$/i.exec(auth);
+  if (match) return match[1].trim();
   if (body && body.token) return body.token;
   return url.searchParams.get('token') || '';
 }
@@ -74,8 +77,16 @@ export async function handleAuth(request, env, url, cors) {
     return json({ ok: true, ...(await issueAdminToken(env, auth, admin.role, admin.username)) }, cors);
   }
 
+  if (path === '/api/verify-token' && method === 'POST') {
+    const payload = await verifyToken(env.TOKEN_SECRET, tokenFrom(request, url, body));
+    if (!payload || payload.r !== 'access') {
+      return json({ ok: false, error: 'invalid_token' }, cors);
+    }
+    return json({ ok: true, exp: payload.e }, cors);
+  }
+
   // ---------- 需要管理员 token ----------
-  const payload = await verifyToken(env.TOKEN_SECRET, tokenFrom(url, body));
+  const payload = await verifyToken(env.TOKEN_SECRET, tokenFrom(request, url, body));
   if (!payload || (payload.r !== 'admin' && payload.r !== 'super_admin')) {
     return json({ ok: false, error: 'invalid_token' }, cors);
   }
@@ -116,6 +127,7 @@ export async function handleAuth(request, env, url, cors) {
   }
 
   if (path === '/api/admin/add' && method === 'POST') {
+    if (payload.r !== 'super_admin') return json({ ok: false, error: 'permission_denied' }, cors);
     if (!body.username || !body.password) return json({ ok: false, error: 'empty_fields' }, cors);
     if ((auth.admins || []).some((a) => a.username === body.username)) {
       return json({ ok: false, error: 'account_exists' }, cors);
@@ -128,10 +140,14 @@ export async function handleAuth(request, env, url, cors) {
   if (path === '/api/admin/delete' && method === 'POST') {
     if (payload.r !== 'super_admin') return json({ ok: false, error: 'permission_denied' }, cors);
     if (!body.username) return json({ ok: false, error: 'empty_username' }, cors);
-    if (body.username === 'admin') return json({ ok: false, error: 'cannot_delete_super_admin' }, cors);
+    if (body.username === payload.s) return json({ ok: false, error: 'self_delete' }, cors);
     const idx = (auth.admins || []).findIndex((a) => a.username === body.username);
     if (idx === -1) return json({ ok: false, error: 'not_found' }, cors);
-    if (auth.admins.length <= 1) return json({ ok: false, error: 'last_admin' }, cors);
+    const target = auth.admins[idx];
+    const superAdminCount = auth.admins.filter((a) => a.role === 'super_admin').length;
+    if (target.role === 'super_admin' && superAdminCount <= 1) {
+      return json({ ok: false, error: 'last_super_admin' }, cors);
+    }
     auth.admins.splice(idx, 1);
     auth.kver = (auth.kver || 1) + 1;
     await saveAuth(env, auth);

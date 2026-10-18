@@ -30,19 +30,27 @@
 
     var isPlaying = false;
 
+    function bgmText(key) {
+        return window.t ? window.t(key) : key;
+    }
+
     function setPlaying() {
         isPlaying = true;
         toggle.classList.remove('muted');
-        toggle.setAttribute('title', '静音');
-        toggle.setAttribute('aria-label', '静音');
+        toggle.setAttribute('title', bgmText('bgm_mute'));
+        toggle.setAttribute('aria-label', bgmText('bgm_mute'));
     }
 
     function setMuted() {
         isPlaying = false;
         toggle.classList.add('muted');
-        toggle.setAttribute('title', '播放背景音乐');
-        toggle.setAttribute('aria-label', '播放背景音乐');
+        toggle.setAttribute('title', bgmText('bgm_play'));
+        toggle.setAttribute('aria-label', bgmText('bgm_play'));
     }
+
+    document.addEventListener('languageChanged', function () {
+        if (isPlaying) setPlaying(); else setMuted();
+    });
 
     // 页面加载时尝试自动播放
     audio.play().then(function () {
@@ -107,8 +115,14 @@ Vue.createApp({
             }
         });
 
+        const onPasswordInput = () => {
+            if (errorMsg.value) errorMsg.value = '';
+            showError.value = false;
+        };
+
         const checkPassword = async () => {
             if (!password.value || loading.value) return;
+            errorMsg.value = '';
             loading.value = true;
             try {
                 const ok = await window.AuthUtils.verifyAccessPassword(password.value);
@@ -125,14 +139,14 @@ Vue.createApp({
                     if (pwInput.value) pwInput.value.focus();
                 }
             } catch (e) {
-                errorMsg.value = 'Server error, please try again';
+                errorMsg.value = t('server_error');
                 showError.value = true;
                 setTimeout(() => { showError.value = false; }, 2000);
             }
             loading.value = false;
         };
 
-        return { password, errorMsg, showError, pwInput, loading, t, checkPassword };
+        return { password, errorMsg, showError, pwInput, loading, t, checkPassword, onPasswordInput };
     }
 }).mount('#password-gate-app');
 
@@ -442,7 +456,8 @@ Vue.createApp({
             buildCarousel();
             return;
         }
-        content.innerHTML = '<p style="text-align:center; padding:30px 0;">Loading...</p>';
+        var loadingText = window.t ? window.t('loading_data') : 'Loading...';
+        content.innerHTML = '<p style="text-align:center; padding:30px 0;">' + loadingText + '</p>';
         buildCarousel();
         fetch('locales/' + lang + '.html')
             .then(function (res) {
@@ -458,7 +473,8 @@ Vue.createApp({
             })
             .catch(function (err) {
                 console.error(err);
-                content.innerHTML = '<p style="text-align:center; padding:30px 0;">加载失败，请稍后重试。</p>';
+                var failText = window.t ? window.t('about_load_failed') : '加载失败，请稍后重试。';
+                content.innerHTML = '<p style="text-align:center; padding:30px 0;">' + failText + '</p>';
                 buildCarousel();
             });
     }
@@ -474,8 +490,13 @@ Vue.createApp({
         }
     }
 
-    function close() {
+    function close(fromPopstate) {
         overlay.classList.remove('visible');
+        // UI 主动关闭时消费掉自己 push 的历史记录，避免用户再多按一次返回
+        if (!fromPopstate && modalHistoryPushed) {
+            modalHistoryPushed = false;
+            history.back();
+        }
     }
 
     button.addEventListener('click', function () {
@@ -486,7 +507,7 @@ Vue.createApp({
         }
     });
 
-    closeBtn.addEventListener('click', close);
+    closeBtn.addEventListener('click', function () { close(); });
 
     // 触摸滑动翻页
     var touchX = 0;
@@ -536,7 +557,7 @@ Vue.createApp({
     window.addEventListener('popstate', function () {
         modalHistoryPushed = false;
         if (isOpen()) {
-            close();
+            close(true);
         }
     });
 

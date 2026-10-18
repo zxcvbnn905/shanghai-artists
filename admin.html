@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="referrer" content="no-referrer">
     <title data-i18n-key="admin_title">Admin Panel</title>
-    <link id="favicon" rel="icon" type="image/png" href="assets/others/stamp_CN.svg">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link id="favicon" rel="icon" type="image/svg+xml" href="assets/others/stamp_CN.svg">
+    <script src="https://unpkg.com/vue@3.5.32/dist/vue.global.js"></script>
     <script src="js/store.js"></script>
     <script src="js/auth.js"></script>
 
@@ -83,7 +83,7 @@
                         <thead>
                             <tr>
                                 <th>{{ t('admin_username') }}</th>
-                                <th>{{ t('admin_role_super').charAt(0) === '超' ? '角色' : 'Role' }}</th>
+                                <th>{{ t('admin_role_header') }}</th>
                                 <th v-if="isSuperAdminUser"></th>
                             </tr>
                         </thead>
@@ -97,7 +97,7 @@
                                 </td>
                                 <td v-if="isSuperAdminUser">
                                     <button class="delete-btn"
-                                        :disabled="admin.role === 'super_admin'"
+                                        :disabled="admin.username === currentUser || (admin.role === 'super_admin' && superAdminCount <= 1)"
                                         @click="deleteAdmin(admin.username)">
                                         {{ t('admin_delete') }}
                                     </button>
@@ -155,6 +155,9 @@
             const adminList = Vue.ref([]);
             const manageMsg = Vue.reactive({ msg: '', msgType: '' });
             const newAdmin = Vue.reactive({ username: '', password: '', confirmPw: '' });
+            const superAdminCount = Vue.computed(() =>
+                adminList.value.filter((a) => a.role === 'super_admin').length
+            );
 
             const t = (key) => {
                 void (window._i18nTick && window._i18nTick.n);
@@ -236,7 +239,7 @@
                     accessPw.msg = t('admin_update_success');
                     accessPw.msgType = 'success';
                 } else {
-                    accessPw.msg = result.error || 'Error';
+                    accessPw.msg = adminErrorText(result.error);
                     accessPw.msgType = 'error';
                 }
                 accessPw.newPw = '';
@@ -265,7 +268,7 @@
                     myPw.msg = t('admin_current_wrong');
                     myPw.msgType = 'error';
                 } else {
-                    myPw.msg = result.error || 'Error';
+                    myPw.msg = adminErrorText(result.error);
                     myPw.msgType = 'error';
                 }
                 myPw.currentPw = '';
@@ -275,8 +278,19 @@
             };
 
             // ---- 删除管理员 ----
+            const adminErrorText = (code) => {
+                const keyMap = {
+                    self_delete: 'admin_self_delete',
+                    last_super_admin: 'admin_last_super',
+                    permission_denied: 'admin_permission_denied',
+                    not_found: 'admin_not_found',
+                    account_exists: 'admin_account_exists'
+                };
+                return t(keyMap[code] || 'admin_error_generic');
+            };
+
             const deleteAdmin = async (username) => {
-                if (username === 'admin') return;
+                if (username === currentUser.value) return;
                 manageMsg.msg = '';
                 const result = syncToken(await window.AuthUtils.deleteAdmin(token.value, username));
                 if (result.ok) {
@@ -284,7 +298,7 @@
                     manageMsg.msg = t('admin_update_success');
                     manageMsg.msgType = 'success';
                 } else {
-                    manageMsg.msg = t('admin_last_admin_warn');
+                    manageMsg.msg = adminErrorText(result.error);
                     manageMsg.msgType = 'error';
                 }
                 setTimeout(() => { manageMsg.msg = ''; }, 3000);
@@ -308,7 +322,7 @@
                     manageMsg.msg = t('admin_account_exists');
                     manageMsg.msgType = 'error';
                 } else {
-                    manageMsg.msg = result.error || 'Error';
+                    manageMsg.msg = adminErrorText(result.error);
                     manageMsg.msgType = 'error';
                 }
                 newAdmin.username = '';
@@ -341,7 +355,7 @@
                 isLoggedIn, currentUser, isSuperAdminUser,
                 loginUsername, loginPassword, loginError,
                 accessPw, myPw,
-                adminList, manageMsg, newAdmin,
+                adminList, manageMsg, newAdmin, superAdminCount,
                 t, doLogin, doLogout,
                 updateAccessPassword, updateMyPassword,
                 deleteAdmin, addAdmin, cancelAddAdmin

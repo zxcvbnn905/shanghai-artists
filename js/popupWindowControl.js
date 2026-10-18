@@ -31,9 +31,15 @@ const PopupApp = {
         };
 
         const loadManifest = async () => {
+            // 远程后端需先通过门禁校验，避免伪造 token 时提前发数据请求
+            if (window.__gatePromise) {
+                let gateOk = false;
+                try { gateOk = await window.__gatePromise; } catch (e) { gateOk = false; }
+                if (gateOk === false) return;
+            }
             const [artistRes, studioRes] = await Promise.allSettled([
-                fetch(window.dataUrl('data/buildingPicture_manifest.json')),
-                fetch(window.dataUrl('data/studioPicture_manifest.json'))
+                fetch(window.dataFetchUrl('data/buildingPicture_manifest.json'), { headers: window.authHeaders() }),
+                fetch(window.dataFetchUrl('data/studioPicture_manifest.json'), { headers: window.authHeaders() })
             ]);
 
             if (artistRes.status === 'fulfilled' && artistRes.value.ok) {

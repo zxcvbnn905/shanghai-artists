@@ -12,6 +12,12 @@ window.allStudiosData = {};
 window.studioMarkersOnScreen = {};
 window.currentFilteredStudios = [];
 
+// 语言包可能尚未加载，此时回退到中英双语提示
+function mapErrorText(key, fallback) {
+    const value = window.t ? window.t(key) : key;
+    return value === key ? fallback : value;
+}
+
 // 地图或数据加载失败时不要让用户永久卡在加载遮罩上
 window.showMapLoadError = function(message) {
     const loader = document.getElementById('main-map-loader');
@@ -20,7 +26,7 @@ window.showMapLoadError = function(message) {
     const box = document.createElement('div');
     box.style.cssText = 'max-width:80%;font-size:20px;line-height:1.6;text-align:center;color:#333;';
     box.textContent = message ||
-        '地图加载失败，请刷新页面或返回首页重新验证 / Failed to load the map. Please refresh or sign in again.';
+        mapErrorText('map_load_failed', '地图加载失败，请刷新页面或返回首页重新验证 / Failed to load the map. Please refresh or sign in again.');
     loader.appendChild(box);
     loader.style.display = 'flex';
     loader.style.cursor = 'default';
@@ -28,7 +34,7 @@ window.showMapLoadError = function(message) {
 
 if (typeof mapboxgl === 'undefined') {
     console.error('Mapbox GL JS failed to load.');
-    window.showMapLoadError('地图组件加载失败，请检查网络后刷新 / Failed to load the map library. Please check your connection and refresh.');
+    window.showMapLoadError(mapErrorText('map_library_missing', '地图组件加载失败，请检查网络后刷新 / Failed to load the map library. Please check your connection and refresh.'));
     throw new Error('Mapbox GL JS is not available');
 }
 
@@ -75,14 +81,14 @@ var _mapReady = false;
 var _mapLoadWatchdog = setTimeout(function() {
     if (_mapReady) return;
     console.error('Map load timed out before the initial load event.');
-    window.showMapLoadError('地图加载超时，请检查网络后刷新 / Map load timed out. Please check your connection and refresh.');
+    window.showMapLoadError(mapErrorText('map_load_timeout', '地图加载超时，请检查网络后刷新 / Map load timed out. Please check your connection and refresh.'));
 }, 15000);
 var _dataLoadWatchdog = null;
 
 if (!mapboxgl.accessToken) {
     clearTimeout(_mapLoadWatchdog);
     console.error('Missing Mapbox access token; map cannot start.');
-    window.showMapLoadError('地图凭证缺失，请返回首页重新验证 / Map access token is missing. Please sign in again.');
+    window.showMapLoadError(mapErrorText('map_token_missing', '地图凭证缺失，请返回首页重新验证 / Map access token is missing. Please sign in again.'));
     throw new Error('Missing Mapbox access token');
 }
 
@@ -106,8 +112,21 @@ try {
 } catch (err) {
     clearTimeout(_mapLoadWatchdog);
     console.error('Failed to initialize map:', err);
-    window.showMapLoadError('地图初始化失败，请返回首页重新验证 / Failed to initialize the map. Please sign in again.');
+    window.showMapLoadError(mapErrorText('map_init_failed', '地图初始化失败，请返回首页重新验证 / Failed to initialize the map. Please sign in again.'));
     throw err;
+}
+
+// 门禁校验期间 body 为 display:none，Mapbox 初始化时容器尺寸为 0；
+// body 显示后容器尺寸变化，必须通知 Mapbox 重算画布（否则只渲染在左上角，需按 F12 才恢复）
+if (typeof ResizeObserver !== 'undefined') {
+    const mapContainerEl = document.getElementById('map');
+    if (mapContainerEl) {
+        new ResizeObserver(function() {
+            if (window.map && typeof window.map.resize === 'function') {
+                window.map.resize();
+            }
+        }).observe(mapContainerEl);
+    }
 }
 
 window.force2D = function() {
@@ -197,10 +216,26 @@ window.updateMapLanguage = function(lang) {
 };
 
 window.map.on('load', async () => {
+    // 门禁未通过前不加载任何数据（伪造 token 会在 verify-token 处被拒绝）
+    if (window.__gatePromise) {
+        let gateOk = false;
+        try {
+            gateOk = await window.__gatePromise;
+        } catch (e) {
+            gateOk = false;
+        }
+        if (gateOk === false) return;
+    }
+
+    // 门禁放行后 body 已可见，主动重算一次画布尺寸（兼容不支持 ResizeObserver 的环境）
+    if (window.map && typeof window.map.resize === 'function') {
+        window.map.resize();
+    }
+
     _mapReady = true;
     clearTimeout(_mapLoadWatchdog);
     _dataLoadWatchdog = setTimeout(function() {
-        window.showMapLoadError('地图数据加载超时，请检查网络后刷新 / Map data loading timed out. Please check your connection and refresh.');
+        window.showMapLoadError(mapErrorText('map_data_timeout', '地图数据加载超时，请检查网络后刷新 / Map data loading timed out. Please check your connection and refresh.'));
     }, 20000);
 
     window.map.touchZoomRotate.disableRotation();
@@ -332,6 +367,20 @@ window.map.on('load', async () => {
             );
         });
 
+        // 点击空白地图：关闭菜单与侧栏，并清空选中/关系/迁徙状态
+        window.map.on('click', (e) => {
+            if (!window.currentSelectedMarker && !window.currentSelectedStudio) return;
+            if (window.map.getLayer('clusters') &&
+                window.map.queryRenderedFeatures(e.point, { layers: ['clusters'] }).length > 0) {
+                return;
+            }
+            if (window.GlobalStore) {
+                window.GlobalStore.isSidebarVisible = false;
+                window.GlobalStore.isPopupOpen = false;
+            }
+            if (typeof window.resetMapSelection === 'function') window.resetMapSelection();
+        });
+
         // 鼠标悬停样式
         window.map.on('mouseenter', 'clusters', () => {
             window.map.getCanvas().style.cursor = 'pointer';
@@ -371,7 +420,7 @@ window.map.on('load', async () => {
         clearTimeout(_mapLoadWatchdog);
         clearTimeout(_dataLoadWatchdog);
         console.error("An error occurred during map load:", error);
-        window.showMapLoadError('地图数据加载失败，请刷新重试 / Failed to load map data. Please refresh and try again.');
+        window.showMapLoadError(mapErrorText('map_data_failed', '地图数据加载失败，请刷新重试 / Failed to load map data. Please refresh and try again.'));
         sessionStorage.removeItem('fromIndex');
     }
 });

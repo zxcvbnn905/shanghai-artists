@@ -70,6 +70,19 @@ function updateContent() {
             element.textContent = t(key);
         }
     });
+    // 属性翻译：aria-label / title / alt
+    [
+        ['data-i18n-aria-label', 'aria-label'],
+        ['data-i18n-title', 'title'],
+        ['data-i18n-alt', 'alt']
+    ].forEach(function(pair) {
+        document.querySelectorAll('[' + pair[0] + ']').forEach(function(element) {
+            var key = element.getAttribute(pair[0]);
+            var value = t(key);
+            if (value !== key) element.setAttribute(pair[1], value);
+        });
+    });
+
     // admin 页的 <title> 自带 data-i18n-key，已在上面按 admin_title 更新，不能再被通用 title 覆盖
     const titleElement = document.querySelector('title');
     if (!titleElement || !titleElement.hasAttribute('data-i18n-key')) {

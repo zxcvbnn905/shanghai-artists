@@ -75,10 +75,6 @@
 
             const isSocialDisabled = computed(() => !isChineseNatl());
 
-            const isDensityDisabled = computed(() => {
-                return window.GlobalStore && window.GlobalStore.attributeDisplayMode !== null;
-            });
-
             const isDensityHidden = computed(() => resultCount.value < 10);
 
             const isNatlDisabled = computed(() => filters.Origin !== 'all');
@@ -465,9 +461,6 @@
                     window.GlobalStore.attributeDisplayMode = null;
                 } else {
                     window.GlobalStore.attributeDisplayMode = mode;
-                    if (window.GlobalStore.activeLayerMode === 'density') {
-                        setLayerMode('position');
-                    }
                 }
                 if (typeof window.updateAllMarkerStyles === 'function') {
                     window.updateAllMarkerStyles();
@@ -666,7 +659,7 @@
                 isArtistSearchDisabled, isStudioSearchDisabled,
                 natlOptions, originOptions, yearOptions,
                 resultCount,
-                isSocialDisabled, isDensityDisabled, isDensityHidden,
+                isSocialDisabled, isDensityHidden,
                 isNatlDisabled, isOriginDisabled,
                 natlPanelOpen, natlPanelRef, natlTriggerRef,
                 natlDropdownRef, natlDropdownStyle,

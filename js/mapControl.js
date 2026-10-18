@@ -728,6 +728,32 @@ document.addEventListener('languageChanged', (e) => {
     }
 });
 
+let _screenUpdatePending = false;
+let _screenUpdateTimer = null;
+
+// 只保留最新一次 idle 刷新，避免快速筛选时堆积多次全量查询
+function scheduleScreenUpdate() {
+    if (!window.map || _screenUpdatePending) return;
+    _screenUpdatePending = true;
+
+    const run = () => {
+        if (!_screenUpdatePending) return;
+        _screenUpdatePending = false;
+        if (_screenUpdateTimer) {
+            clearTimeout(_screenUpdateTimer);
+            _screenUpdateTimer = null;
+        }
+        if (window.map) updateMarkersOnScreen();
+    };
+
+    window.map.once('idle', run);
+    // 样式切换等场景 idle 可能不触发，超时兜底
+    _screenUpdateTimer = setTimeout(() => {
+        if (window.map) window.map.off('idle', run);
+        run();
+    }, 800);
+}
+
 function updateMarkers(filteredArtists) {
     let combinedArtists = [...filteredArtists];
     if (window.temporaryVisibleArtists && window.temporaryVisibleArtists.length > 0) {
@@ -757,7 +783,7 @@ function updateMarkers(filteredArtists) {
         });
     }
 
-    window.map.once('idle', updateMarkersOnScreen);
+    scheduleScreenUpdate();
 }
 
 const mapStyles = {
@@ -804,9 +830,12 @@ async function loadShanghaiMap1937() {
         if (window.map.getSource('shanghai-1937-street-source')) {
         } else {
             const [geojsonRes, csvRes] = await Promise.all([
-                fetch(window.dataUrl('data/SH1937_street.geojson')),
-                fetch(window.dataUrl('data/roadTranslation1937.csv'))
+                fetch(window.dataFetchUrl('data/SH1937_street.geojson'), { headers: window.authHeaders() }),
+                fetch(window.dataFetchUrl('data/roadTranslation1937.csv'), { headers: window.authHeaders() })
             ]);
+            if (!geojsonRes.ok || !csvRes.ok) {
+                throw new Error('Failed to load 1937 street data: HTTP ' + geojsonRes.status + '/' + csvRes.status);
+            }
             const geojson = await geojsonRes.json();
             const csvText = await csvRes.text();
 
@@ -897,9 +926,12 @@ async function loadShanghaiMap1947() {
         if (window.map.getSource('shanghai-1947-street-source')) {
         } else {
             const [geojsonRes, csvRes] = await Promise.all([
-                fetch(window.dataUrl('data/SH1947_street.geojson')),
-                fetch(window.dataUrl('data/roadTranslation1947.csv'))
+                fetch(window.dataFetchUrl('data/SH1947_street.geojson'), { headers: window.authHeaders() }),
+                fetch(window.dataFetchUrl('data/roadTranslation1947.csv'), { headers: window.authHeaders() })
             ]);
+            if (!geojsonRes.ok || !csvRes.ok) {
+                throw new Error('Failed to load 1947 street data: HTTP ' + geojsonRes.status + '/' + csvRes.status);
+            }
             const geojson = await geojsonRes.json();
             const csvText = await csvRes.text();
 
