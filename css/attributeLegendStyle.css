@@ -44,6 +44,12 @@
     object-fit: contain;
 }
 
+/* lite 图标在 10px 内容区居中，外框仍占 22px，切换时文字不位移 */
+.attr-legend-icon.is-lite {
+    box-sizing: border-box;
+    padding: 6px;
+}
+
 .attr-legend-label {
     font-size: 12px;
     color: #5a4a3a;
@@ -125,6 +131,10 @@
         width: 18px;
         height: 18px;
         flex: 0 0 18px;
+    }
+
+    .attr-legend-icon.is-lite {
+        padding: 4px;
     }
 
     .attr-legend-items {

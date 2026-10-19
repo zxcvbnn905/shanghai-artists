@@ -134,12 +134,18 @@
     color: #666;
     min-width: 36px;
     white-space: nowrap;
+    /* 自定义中文字体的墨迹在行盒内偏上，下移 1px 与右侧控件视觉居中 */
+    position: relative;
+    top: 1px;
 }
 
 .filter-select {
     flex: 1;
     min-width: 80px;
-    padding: 6px 8px;
+    /* 固定高度 + 不设上下内边距：给中文字形留出足够内容区，避免原生 select 裁掉文字上半部分 */
+    height: 28px;
+    padding: 0 8px;
+    box-sizing: border-box;
     border: 1px solid #d0c8c0;
     border-radius: 6px;
     font-size: 13px;
@@ -157,6 +163,46 @@
     opacity: 0.4;
     cursor: not-allowed;
     background: #f0f0f0;
+}
+
+/* 下拉框容器：统一在右侧放置与国籍筛选一致的小三角 */
+.select-control {
+    position: relative;
+    flex: 1;
+    min-width: 80px;
+    display: flex;
+}
+
+.select-control .filter-select {
+    width: 100%;
+    padding-right: 26px;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    line-height: 1;
+    color: #8D5E3C;
+    pointer-events: none;
+}
+
+.select-control:has(select:disabled) .select-arrow {
+    opacity: 0.4;
+}
+
+/* 中文值下拉框：中文字体下降部为 0，原生 select 会把文字排得偏上；
+   上内边距大于下内边距，把文字整体压回视觉中心 */
+body[data-lang="zh"] select.filter-select-cn {
+    padding-top: 5px;
+    padding-bottom: 0;
+}
+
+body[data-lang="zh"] .natl-trigger-text {
+    position: relative;
+    top: 2px;
 }
 
 /* 国籍多选：文档流内展开，避免被侧栏 overflow 裁切 */
@@ -265,6 +311,15 @@
 
 .natl-checkbox-option:hover {
     background: #f0e8dc;
+}
+
+.natl-checkbox-option.option-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.natl-checkbox-option.option-disabled:hover {
+    background: transparent;
 }
 
 .natl-checkbox-option input[type="checkbox"] {

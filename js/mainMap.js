@@ -277,7 +277,7 @@ window.map.on('load', async () => {
         window.studios = studios;
         window.excludedArtists = excludedArtists || [];
 
-        // studio 记录：打类型标记、补齐姓名别名、预计算活跃年份集合
+        // studio 记录：打类型标记、补齐姓名别名、预计算活跃年份与成员性别集合
         window.studios.forEach(function(studio) {
             studio._type = 'studio';
             studio.Name_CN = studio['Studio Name_CN'];
@@ -287,6 +287,17 @@ window.map.on('load', async () => {
                 if (studio['Yr_' + year] === '1') yearSet.add(year);
             }
             studio._yearSet = yearSet;
+
+            // 性别筛选采用包含原则：任一成员符合即可（男性 / 女性 / 性别不详）
+            const sexSet = new Set();
+            (studio['艺术ists_Information_CN'] || '').split(/\r?\n/).forEach(function(line) {
+                const token = (line.split('|')[1] || '').trim();
+                if (!token) return;
+                if (token.indexOf('男') !== -1) sexSet.add('m');
+                else if (token.indexOf('女') !== -1) sexSet.add('f');
+                else sexSet.add('unknown');
+            });
+            studio._sexSet = sexSet;
         });
 
         // 先将排除名单中的艺术家富化到对应 studio（供侧边栏内联展示），并得到未匹配名单
@@ -345,6 +356,9 @@ window.map.on('load', async () => {
         window.map.on('zoomend', () => {
              if (window.ArtistRelationship && typeof window.ArtistRelationship.drawRelationships === 'function') {
                  window.ArtistRelationship.drawRelationships();
+             }
+             if (typeof window.syncZoomDependentMarkerStyles === 'function') {
+                 window.syncZoomDependentMarkerStyles();
              }
         });
 

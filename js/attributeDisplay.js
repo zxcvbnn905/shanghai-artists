@@ -14,13 +14,16 @@
             categories: [
                 { key: 'male', labelKey: 'male',
                   match: function (a) { return (a.Sex || '').trim().toLowerCase() === 'm'; },
-                  img: { zh: G + 'male_CN.svg', en: G + 'male_EN.svg' } },
+                  img: { zh: G + 'male_CN.svg', en: G + 'male_EN.svg' },
+                  liteImg: G + 'male_lite.svg' },
                 { key: 'female', labelKey: 'female',
                   match: function (a) { return (a.Sex || '').trim().toLowerCase() === 'f'; },
-                  img: { zh: G + 'female_CN.svg', en: G + 'female_EN.svg' } },
+                  img: { zh: G + 'female_CN.svg', en: G + 'female_EN.svg' },
+                  liteImg: G + 'female_lite.svg' },
                 { key: 'unknown', labelKey: 'unknown',
                   match: function () { return true; },
-                  img: { zh: G + 'unknown_CN.svg', en: G + 'unknown_EN.svg' } }
+                  img: { zh: G + 'unknown_CN.svg', en: G + 'unknown_EN.svg' },
+                  liteImg: G + 'unknown_lite.svg' }
             ],
             fallbackKey: 'unknown'
         },
@@ -137,17 +140,18 @@
             }
             return cats[cats.length - 1];
         },
-        categoryImage: function (cat, lang) {
+        categoryImage: function (cat, lang, lite) {
             if (!cat) return '';
-            return typeof cat.img === 'string' ? cat.img : (lang === 'en' ? cat.img.en : cat.img.zh);
+            var img = (lite && cat.liteImg) ? cat.liteImg : cat.img;
+            return typeof img === 'string' ? img : (lang === 'en' ? img.en : img.zh);
         },
         categoryLabel: function (cat, lang) {
             if (!cat) return '';
             if (cat.labelKey) return window.t ? window.t(cat.labelKey) : cat.labelKey;
             return lang === 'en' ? cat.label.en : cat.label.zh;
         },
-        getImage: function (mode, artist, lang) {
-            return this.categoryImage(this.getCategory(mode, artist), lang);
+        getImage: function (mode, artist, lang, lite) {
+            return this.categoryImage(this.getCategory(mode, artist), lang, lite);
         }
     };
 
@@ -184,10 +188,14 @@
                     if (!activeConf.value) return [];
                     var lang = currentLang.value;
                     var conf = activeConf.value;
+                    // 图例与地图标点同步：性别模式下 zoom 小于阈值时显示 lite 图标
+                    var lite = window.GlobalStore.attributeDisplayMode === 'gender' &&
+                        window.GlobalStore.mapZoom < window.GENDER_LITE_MAX_ZOOM;
                     var toItem = function (c) {
                         return {
                             key: c.key,
-                            icon: window.AttrDisplay.categoryImage(c, lang),
+                            icon: window.AttrDisplay.categoryImage(c, lang, lite),
+                            lite: lite && !!c.liteImg,
                             label: window.AttrDisplay.categoryLabel(c, lang)
                         };
                     };

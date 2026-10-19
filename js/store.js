@@ -1,3 +1,6 @@
+// 性别模式下 zoom 小于该值时使用 lite 简化图标（地图标点与图例共用）
+window.GENDER_LITE_MAX_ZOOM = 19;
+
 window.GlobalStore = Vue.reactive({
     isSidebarVisible: false,
     selectedArtist: null,
@@ -9,7 +12,8 @@ window.GlobalStore = Vue.reactive({
     isFilterListExpanded: false,
     isLeftPanelOpen: !window.matchMedia('(max-width: 768px), (max-height: 500px)').matches,
     activeLayerMode: 'position',
-    attributeDisplayMode: null
+    attributeDisplayMode: null,
+    mapZoom: 11
 });
 
 // ===== 后端地址表：两套后端（Cloudflare Worker / 腾讯云 CloudBase）可切换 =====

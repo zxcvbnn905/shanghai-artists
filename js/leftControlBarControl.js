@@ -10,7 +10,6 @@
     };
 
     let fuse = null;
-    let studioFuse = null;
 
     // 中国艺术家的英文名固定为「姓, 名」格式；去掉标点和空格后再比较，
     // 使 "YanShian"、"Yan Shian" 都能匹配 "Yan, Shi'an"
@@ -39,13 +38,6 @@
                 threshold: 0.4
             });
         }
-        if (window.studios && window.studios.length > 0) {
-            studioFuse = new Fuse(window.studios, {
-                includeScore: true,
-                keys: ['Name_CN', 'Name_EN'],
-                threshold: 0.4
-            });
-        }
     };
 
     const leftPanelApp = createApp({
@@ -53,9 +45,9 @@
             const startYear = ref(1912);
             const endYear = ref(1948);
             // Natl: 已勾选的 Natl_CN 数组；空数组 = 所有国籍（value 与语言无关）
-            const filters = reactive({ Natl: [], Origin: 'all', Sex: 'all' });
+            // PlaceType: all = 艺术家 + studio；residence = 仅艺术家；studio = 仅 studio
+            const filters = reactive({ Natl: [], Origin: 'all', Sex: 'all', PlaceType: 'all' });
             const nameFilter = ref('');
-            const studioNameFilter = ref('');
 
             const natlPanelOpen = ref(false);
             const natlPanelRef = ref(null);
@@ -63,11 +55,15 @@
             const natlDropdownRef = ref(null);
             const natlDropdownStyle = ref({});
             let natlInitialized = false;
+            // studio 模式下中国被临时排除，离开时按进入前的状态恢复
+            let restoreChinaAfterStudio = false;
 
             const natlOptions = ref([]);
             const originOptions = ref([]);
             const yearOptions = Array.from({length: 37}, (_, i) => 1912 + i);
             const resultCount = ref(0);
+            // 密度图可用性：住宅/全部类型按艺术家数量，工作室类型按 studio 数量
+            const densityCount = ref(0);
 
             const currentLang = ref(window.currentLanguage || 'zh');
 
@@ -75,7 +71,7 @@
 
             const isSocialDisabled = computed(() => !isChineseNatl());
 
-            const isDensityHidden = computed(() => resultCount.value < 10);
+            const isDensityHidden = computed(() => densityCount.value < 10);
 
             const isNatlDisabled = computed(() => filters.Origin !== 'all');
 
@@ -88,25 +84,33 @@
                 return window.t ? window.t(key) : key;
             };
 
-            const isArtistSearchDisabled = computed(() => studioNameFilter.value.trim().length > 0);
-            const isStudioSearchDisabled = computed(() => nameFilter.value.trim().length > 0);
-
-            const isAllNatl = computed(() =>
-                natlOptions.value.length > 0 && filters.Natl.length === natlOptions.value.length
+            // studio 模式下中国不可选：全部国籍 = 除中国以外的所有国家
+            const natlSelectableOptions = computed(() =>
+                filters.PlaceType === 'studio'
+                    ? natlOptions.value.filter(o => o.value !== '中国')
+                    : natlOptions.value
             );
 
-            const isPartialNatl = computed(() =>
-                filters.Natl.length > 0 && filters.Natl.length < natlOptions.value.length
-            );
+            const isAllNatl = computed(() => {
+                const opts = natlSelectableOptions.value;
+                return opts.length > 0 && opts.every(o => filters.Natl.includes(o.value));
+            });
+
+            const isPartialNatl = computed(() => {
+                const opts = natlSelectableOptions.value;
+                const count = opts.filter(o => filters.Natl.includes(o.value)).length;
+                return count > 0 && count < opts.length;
+            });
 
             const natlSummary = computed(() => {
-                const sel = filters.Natl;
-                if (natlOptions.value.length === 0 || sel.length === natlOptions.value.length) {
+                const opts = natlSelectableOptions.value;
+                const sel = filters.Natl.filter(v => opts.some(o => o.value === v));
+                if (opts.length === 0 || sel.length === opts.length) {
                     return t('all_natl');
                 }
                 if (sel.length === 0) return t('no_natl_selected');
                 if (sel.length === 1) {
-                    const opt = natlOptions.value.find(o => o.value === sel[0]);
+                    const opt = opts.find(o => o.value === sel[0]);
                     return opt ? opt.label : sel[0];
                 }
                 return t('selected_natl_count').replace('{count}', String(sel.length));
@@ -185,7 +189,6 @@
                 const eYear = parseInt(endYear.value, 10);
                 const nameQuery = nameFilter.value.trim().toLowerCase();
                 const normNameQuery = normalizeEnName(nameFilter.value);
-                const studioQuery = studioNameFilter.value.trim().toLowerCase();
                 const selectedNatl = filters.Natl;
 
                 // 去掉标点和空格后完全一致的中国艺术家姓名优先于模糊匹配
@@ -195,9 +198,6 @@
 
                 const fuzzyMatchIds = (nameQuery && fuse)
                     ? pickFuzzyMatches(fuse, nameQuery, window.artists)
-                    : null;
-                const studioFuzzyIds = (studioQuery && studioFuse)
-                    ? pickFuzzyMatches(studioFuse, studioQuery, window.studios || [])
                     : null;
 
                 let filteredArtists = window.artists.filter(artist => {
@@ -238,12 +238,16 @@
 
                     return true;
                 });
-                if (studioQuery) filteredArtists = [];
 
                 let filteredStudios = (window.studios || []).filter(s => {
                     if (selectedNatl.length === 0) return false;
                     const text = (s['艺术ists_Information_CN'] || '');
                     if (!selectedNatl.some(n => (NATL_MATCH_TERMS[n] || [n]).some(term => text.includes(term)))) return false;
+
+                    // 性别按成员包含原则作用于 studio（任一成员符合即可），
+                    // 全部类型与工作室类型下均生效
+                    if (filters.Sex !== 'all' &&
+                        !(s._sexSet && s._sexSet.has(filters.Sex))) return false;
 
                     if (!isNaN(sYear) && !isNaN(eYear)) {
                         const ys = s._yearSet;
@@ -258,53 +262,52 @@
                         }
                     }
 
-                    if (studioQuery) {
-                        if (studioFuzzyIds) {
-                            if (!studioFuzzyIds.has(s.ID)) return false;
-                        } else {
-                            const cn = (s.Name_CN || '').toLowerCase();
-                            const en = (s.Name_EN || '').toLowerCase();
-                            if (!cn.includes(studioQuery) && !en.includes(studioQuery)) return false;
-                        }
-                    }
-
                     return true;
                 });
-                if (nameQuery) filteredStudios = [];
-                window.currentFilteredStudios = filteredStudios;
+
+                // 地点类型：住宅只显示艺术家，工作室只显示 studio；
+                // 按姓名搜索时仍以艺术家为焦点，全部类型下隐藏 studio
+                const placeType = filters.PlaceType;
+                const visibleArtists = placeType === 'studio' ? [] : filteredArtists;
+                let visibleStudios = placeType === 'residence' ? [] : filteredStudios;
+                if (placeType === 'all' && nameQuery) visibleStudios = [];
+                window.currentFilteredStudios = visibleStudios;
 
                 // 当前选中的艺术家/工作室被筛掉时，关闭侧栏并清理选中态
                 const selectedArtist = window.GlobalStore && window.GlobalStore.selectedArtist;
-                const artistFilteredOut = selectedArtist && !filteredArtists.some(a => a.ID === selectedArtist.ID);
+                const artistFilteredOut = selectedArtist && !visibleArtists.some(a => a.ID === selectedArtist.ID);
                 const selectedStudioId = window.currentSelectedStudio;
-                const studioFilteredOut = selectedStudioId && !filteredStudios.some(s => s.ID === selectedStudioId);
+                const studioFilteredOut = selectedStudioId && !visibleStudios.some(s => s.ID === selectedStudioId);
                 if ((artistFilteredOut || studioFilteredOut) && typeof window.resetMapSelection === 'function') {
                     if (window.GlobalStore) window.GlobalStore.isSidebarVisible = false;
                     // skipReapply：当前正在 applyFilters 中，避免递归
                     window.resetMapSelection(true);
                 }
 
-                resultCount.value = studioQuery ? filteredStudios.length : filteredArtists.length;
+                densityCount.value = placeType === 'studio'
+                    ? visibleStudios.length
+                    : visibleArtists.length;
+                resultCount.value = visibleArtists.length + visibleStudios.length;
 
                 requestAnimationFrame(() => {
                     if (typeof window.updateMarkers === 'function') {
-                        window.updateMarkers(filteredArtists);
+                        window.updateMarkers(visibleArtists);
                     }
 
                     if (!isNaN(sYear) && !isNaN(eYear) && sYear <= eYear) {
                         if (window.ArtistRelationship && typeof window.ArtistRelationship.updateRelationships === 'function') {
-                            window.ArtistRelationship.updateRelationships(sYear, eYear, filteredArtists);
+                            window.ArtistRelationship.updateRelationships(sYear, eYear, visibleArtists);
                         }
                     } else {
                         if (window.ArtistRelationship && typeof window.ArtistRelationship.updateRelationships === 'function') {
-                            window.ArtistRelationship.updateRelationships(null, null, filteredArtists);
+                            window.ArtistRelationship.updateRelationships(null, null, visibleArtists);
                         }
                     }
                 });
 
-                document.dispatchEvent(new CustomEvent('filterChanged', { detail: { filteredArtists } }));
+                document.dispatchEvent(new CustomEvent('filterChanged', { detail: { filteredArtists: visibleArtists, densityCount: densityCount.value } }));
 
-                if (resultCount.value < 10 && window.GlobalStore && window.GlobalStore.activeLayerMode === 'density') {
+                if (densityCount.value < 10 && window.GlobalStore && window.GlobalStore.activeLayerMode === 'density') {
                     setLayerMode('position');
                 }
             };
@@ -341,7 +344,17 @@
             };
 
             const onFilterChange = () => {
-                if (filters.Origin !== 'all') {
+                if (filters.PlaceType === 'studio') {
+                    // studio 模式下中国不可选，确保它不会留在已选集合里；
+                    // 籍贯筛选依赖中国籍，同样不可用
+                    if (filters.Natl.indexOf('中国') !== -1) {
+                        filters.Natl = filters.Natl.filter(v => v !== '中国');
+                    }
+                    if (filters.Origin !== 'all') {
+                        filters.Origin = 'all';
+                        natlPanelOpen.value = false;
+                    }
+                } else if (filters.Origin !== 'all') {
                     filters.Natl = ['中国']; // 国籍 value 语言无关
                     natlPanelOpen.value = false;
                 }
@@ -360,6 +373,29 @@
                     }
                 }
                 debouncedApplyFilters();
+            };
+
+            const onPlaceTypeChange = () => {
+                if (filters.PlaceType === 'studio') {
+                    restoreChinaAfterStudio = filters.Natl.includes('中国');
+                    // 原本只选了中国（如按籍贯筛选后切换）：中国被排除后自动选上其余国家，
+                    // 避免进入工作室类型后没有任何国籍可选
+                    if (restoreChinaAfterStudio) {
+                        filters.Natl = filters.Natl.filter(v => v !== '中国');
+                        if (filters.Natl.length === 0) {
+                            const all = natlSelectableOptions.value.map(o => o.value);
+                            if (all.length > 0) filters.Natl = all;
+                        }
+                    }
+                } else if (restoreChinaAfterStudio) {
+                    // 回到其他类型时恢复被临时排除的中国国籍
+                    if (!filters.Natl.includes('中国') &&
+                        natlOptions.value.some(o => o.value === '中国')) {
+                        filters.Natl = filters.Natl.concat('中国');
+                    }
+                    restoreChinaAfterStudio = false;
+                }
+                onFilterChange();
             };
 
             const closeNatlPanel = (focusTrigger = false) => {
@@ -419,8 +455,9 @@
             };
 
             const selectAllNationalities = () => {
-                const all = natlOptions.value.map(o => o.value);
-                filters.Natl = filters.Natl.length === all.length ? [] : all;
+                const all = natlSelectableOptions.value.map(o => o.value);
+                const allSelected = all.length > 0 && all.every(v => filters.Natl.includes(v));
+                filters.Natl = allSelected ? [] : all;
                 onFilterChange();
             };
 
@@ -442,16 +479,7 @@
                 else debouncedApplyFilters();
             };
 
-            const onStudioNameFilterInput = () => {
-                if (!studioNameFilter.value.trim()) applyFilters();
-                else debouncedApplyFilters();
-            };
-
             const onNameFilterEnter = () => {
-                debouncedApplyFilters();
-            };
-
-            const onStudioNameFilterEnter = () => {
                 debouncedApplyFilters();
             };
 
@@ -655,8 +683,7 @@
             }
 
             return {
-                startYear, endYear, filters, nameFilter, studioNameFilter,
-                isArtistSearchDisabled, isStudioSearchDisabled,
+                startYear, endYear, filters, nameFilter,
                 natlOptions, originOptions, yearOptions,
                 resultCount,
                 isSocialDisabled, isDensityHidden,
@@ -665,9 +692,8 @@
                 natlDropdownRef, natlDropdownStyle,
                 isAllNatl, isPartialNatl, natlSummary,
                 toggleNatlPanel, selectAllNationalities,
-                t, setLayerMode, onStartYearChange, onEndYearChange, onFilterChange,
-                onNameFilterInput, onStudioNameFilterInput,
-                onNameFilterEnter, onStudioNameFilterEnter,
+                t, setLayerMode, onStartYearChange, onEndYearChange, onFilterChange, onPlaceTypeChange,
+                onNameFilterInput, onNameFilterEnter,
                 toggleAttrDisplay, restoreUnifiedSymbol,
                 closePanel,
                 GlobalStore: window.GlobalStore

@@ -1,3 +1,14 @@
+const LITE_MARKER_SIZE = 10;
+const LITE_MARKER_HOVER_SIZE = 16;
+const DEFAULT_LITE_COLOR = '#8e0000'; // 与 stamp_CN/EN 印章主色一致
+
+function isLiteMarkerMode() {
+    if (!window.map) return false;
+    const mode = window.GlobalStore ? window.GlobalStore.attributeDisplayMode : null;
+    return (mode === null || mode === 'gender') &&
+        window.map.getZoom() < window.GENDER_LITE_MAX_ZOOM;
+}
+
 function updateMarkersOnScreen() {
     if (!window.map || !window.map.getSource('artists')) {
         for (const id in window.markersOnScreen) {
@@ -132,8 +143,9 @@ function updateMarkersOnScreen() {
                 window.currentHoveredMarker = id;
                 if (window.LayerControl) window.LayerControl.updateState({ hasHoveredMarker: true });
 
-                marker.getElement().style.width = "45px";
-                marker.getElement().style.height = "45px";
+                const hoverSize = isLiteMarkerMode() ? LITE_MARKER_HOVER_SIZE : 45;
+                marker.getElement().style.width = hoverSize + "px";
+                marker.getElement().style.height = hoverSize + "px";
                 marker.getElement().style.transition = "width 0.2s, height 0.2s";
 
                 hoverTimeout = setTimeout(() => {
@@ -150,8 +162,9 @@ function updateMarkersOnScreen() {
                 window.currentHoveredMarker = null;
                 if (window.LayerControl) window.LayerControl.updateState({ hasHoveredMarker: false });
 
-                marker.getElement().style.width = "35px";
-                marker.getElement().style.height = "35px";
+                const baseSize = isLiteMarkerMode() ? LITE_MARKER_SIZE : 35;
+                marker.getElement().style.width = baseSize + "px";
+                marker.getElement().style.height = baseSize + "px";
 
                 if (hoverTimeout) {
                     clearTimeout(hoverTimeout);
@@ -1245,12 +1258,15 @@ window.updateMarkerStyle = function(marker) {
 
     const attrMode = window.GlobalStore ? window.GlobalStore.attributeDisplayMode : null;
     const attrConf = (attrMode && window.AttrDisplayConfig) ? window.AttrDisplayConfig[attrMode] : null;
+    // 默认态与性别模式下 zoom 小于阈值用 lite 简化标点，达到阈值后恢复原图标
+    const lite = isLiteMarkerMode();
+    markerEl.classList.toggle('is-lite', lite); // CSS 用 ::after 扩大 lite 标点的透明点击热区
 
     if (attrConf && window.AttrDisplay) {
         // 性别/国籍/籍贯：分类图片标点（朝鲜无素材，其分类 img 配置为默认印章图）
         const artist = (marker._artistId && window.allArtistsData)
             ? window.allArtistsData[marker._artistId] : null;
-        const src = window.AttrDisplay.getImage(attrMode, artist, window.currentLanguage || 'zh');
+        const src = window.AttrDisplay.getImage(attrMode, artist, window.currentLanguage || 'zh', lite);
         markerEl.style.backgroundImage = `url('${encodeURI(src)}')`; // 国籍/籍贯素材为中文文件名
         markerEl.style.backgroundColor = ''; // 清除统一模式的白底残留（属性图片含朝鲜印章均不加白底）
         markerEl.style.backgroundSize = 'contain'; // 素材宽高比不一，cover 会裁切
@@ -1259,6 +1275,12 @@ window.updateMarkerStyle = function(marker) {
         markerEl.style.borderRadius = '0';
         const svg = markerEl.querySelector('svg');
         if (svg) svg.style.display = 'none';
+    } else if (lite) {
+        // 默认态 lite：无独立素材，用印章同色方块代替
+        markerEl.style.backgroundImage = 'none';
+        markerEl.style.backgroundColor = DEFAULT_LITE_COLOR;
+        const liteSvg = markerEl.querySelector('svg');
+        if (liteSvg) liteSvg.style.display = 'none';
     } else {
         const stampLang = window.currentLanguage || 'zh';
         const stampSrc = stampLang === 'en' ? 'assets/others/stamp_EN.svg' : 'assets/others/stamp_CN.svg';
@@ -1272,13 +1294,30 @@ window.updateMarkerStyle = function(marker) {
         if (svg) svg.style.display = 'none';
     }
 
-    markerEl.style.width = "30px";
-    markerEl.style.height = "30px";
+    const markerSize = lite ? LITE_MARKER_SIZE : 30;
+    markerEl.style.width = markerSize + "px";
+    markerEl.style.height = markerSize + "px";
     markerEl.style.transition = "width 0.2s, height 0.2s";
 };
 
 window.updateAllMarkerStyles = function() {
     for (const id in window.markersOnScreen) {
         window.updateMarkerStyle(window.markersOnScreen[id]);
+    }
+};
+
+// zoom 跨过阈值时批量刷新默认态/性别 lite 标点，其余缩放不触发重绘
+let _markerLiteLast = null;
+window.syncZoomDependentMarkerStyles = function() {
+    if (!window.map) return;
+    const zoom = window.map.getZoom();
+    if (window.GlobalStore) window.GlobalStore.mapZoom = zoom;
+    const lite = zoom < window.GENDER_LITE_MAX_ZOOM;
+    if (lite === _markerLiteLast) return;
+    _markerLiteLast = lite;
+    const mode = window.GlobalStore ? window.GlobalStore.attributeDisplayMode : null;
+    if ((mode === null || mode === 'gender') &&
+        typeof window.updateAllMarkerStyles === 'function') {
+        window.updateAllMarkerStyles();
     }
 };

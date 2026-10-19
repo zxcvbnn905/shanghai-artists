@@ -173,17 +173,23 @@
                 <!-- Filter 1: 起始年份 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('start_year') }}</label>
-                    <select v-model="startYear" @change="onStartYearChange" class="filter-select">
-                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-                    </select>
+                    <div class="select-control">
+                        <select v-model="startYear" @change="onStartYearChange" class="filter-select">
+                            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▾</span>
+                    </div>
                 </div>
 
                 <!-- Filter 2: 结束年份 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('end_year') }}</label>
-                    <select v-model="endYear" @change="onEndYearChange" class="filter-select">
-                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-                    </select>
+                    <div class="select-control">
+                        <select v-model="endYear" @change="onEndYearChange" class="filter-select">
+                            <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▾</span>
+                    </div>
                 </div>
 
                 <!-- Filter 2: 国籍（可折叠多选） + 按国籍显示 -->
@@ -203,20 +209,24 @@
                                 <span class="natl-trigger-arrow" aria-hidden="true">▾</span>
                             </button>
                             <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'nationality' }"
-                                    @click="toggleAttrDisplay('nationality')">{{ t('display_by_nationality') }}</button>
+                                    @click="toggleAttrDisplay('nationality')"
+                                    :disabled="filters.PlaceType === 'studio'">{{ t('display_by_nationality') }}</button>
                         </div>
                         <teleport to="body">
                             <div v-show="natlPanelOpen" id="natl-checkbox-panel" ref="natlDropdownRef"
                                  class="natl-checkbox-panel" :style="natlDropdownStyle"
                                  role="group" aria-labelledby="natl-filter-label" @click.stop>
-                                <label class="natl-checkbox-option natl-all-option">
+                                <label class="natl-checkbox-option natl-all-option"
+                                       :class="{ 'option-disabled': isNatlDisabled }">
                                     <input type="checkbox" :checked="isAllNatl" :indeterminate="isPartialNatl"
                                            :disabled="isNatlDisabled" @change="selectAllNationalities">
                                     <span>{{ t('all_natl') }}</span>
                                 </label>
-                                <label v-for="opt in natlOptions" :key="opt.value" class="natl-checkbox-option">
+                                <label v-for="opt in natlOptions" :key="opt.value" class="natl-checkbox-option"
+                                       :class="{ 'option-disabled': isNatlDisabled || (filters.PlaceType === 'studio' && opt.value === '中国') }">
                                     <input type="checkbox" :value="opt.value" v-model="filters.Natl"
-                                           :disabled="isNatlDisabled" @change="onFilterChange">
+                                           :disabled="isNatlDisabled || (filters.PlaceType === 'studio' && opt.value === '中国')"
+                                           @change="onFilterChange">
                                     <span>{{ opt.label }}</span>
                                 </label>
                             </div>
@@ -227,10 +237,13 @@
                 <!-- Filter 3: 籍贯 + 按籍贯显示 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('filter_origin') }}</label>
-                    <select v-model="filters.Origin" @change="onFilterChange" class="filter-select" :disabled="isOriginDisabled">
-                        <option value="all">{{ t('all_origin') }}</option>
-                        <option v-for="opt in originOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                    </select>
+                    <div class="select-control">
+                        <select v-model="filters.Origin" @change="onFilterChange" class="filter-select filter-select-cn" :disabled="isOriginDisabled">
+                            <option value="all">{{ t('all_origin') }}</option>
+                            <option v-for="opt in originOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▾</span>
+                    </div>
                     <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'origin' }"
                             @click="toggleAttrDisplay('origin')" :disabled="isOriginDisabled">{{ t('display_by_origin') }}</button>
                 </div>
@@ -238,28 +251,38 @@
                 <!-- Filter 4: 性别 + 按性别显示 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('sex') }}</label>
-                    <select v-model="filters.Sex" @change="onFilterChange" class="filter-select">
-                        <option value="all">{{ t('all_sex') }}</option>
-                        <option value="m">{{ t('male') }}</option>
-                        <option value="f">{{ t('female') }}</option>
-                        <option value="unknown">{{ t('unknown') }}</option>
-                    </select>
+                    <div class="select-control">
+                        <select v-model="filters.Sex" @change="onFilterChange" class="filter-select filter-select-cn">
+                            <option value="all">{{ t('all_sex') }}</option>
+                            <option value="m">{{ t('male') }}</option>
+                            <option value="f">{{ t('female') }}</option>
+                            <option value="unknown">{{ t('unknown') }}</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▾</span>
+                    </div>
                     <button class="attr-display-btn" :class="{ active: GlobalStore.attributeDisplayMode === 'gender' }"
-                            @click="toggleAttrDisplay('gender')">{{ t('display_by_gender') }}</button>
+                            @click="toggleAttrDisplay('gender')"
+                            :disabled="filters.PlaceType === 'studio'">{{ t('display_by_gender') }}</button>
                 </div>
 
-                <!-- Filter 5: 艺术家姓名 -->
+                <!-- Filter 5: 地点类型（住宅/工作室互斥） -->
+                <div class="filter-row">
+                    <label class="filter-label">{{ t('place_type') }}</label>
+                    <div class="select-control">
+                        <select v-model="filters.PlaceType" @change="onPlaceTypeChange" class="filter-select filter-select-cn">
+                            <option value="all">{{ t('place_type_all') }}</option>
+                            <option value="residence">{{ t('place_type_residence') }}</option>
+                            <option value="studio">{{ t('place_type_studio') }}</option>
+                        </select>
+                        <span class="select-arrow" aria-hidden="true">▾</span>
+                    </div>
+                </div>
+
+                <!-- Filter 6: 艺术家姓名 -->
                 <div class="filter-row">
                     <label class="filter-label">{{ t('filter_name') }}</label>
                     <input type="text" v-model="nameFilter" @input="onNameFilterInput" @keyup.enter="onNameFilterEnter"
-                           :disabled="isArtistSearchDisabled" :placeholder="t('name_placeholder')" class="filter-input">
-                </div>
-
-                <!-- Filter 6: 工作室名称 -->
-                <div class="filter-row">
-                    <label class="filter-label">{{ t('studio_name') }}</label>
-                    <input type="text" v-model="studioNameFilter" @input="onStudioNameFilterInput" @keyup.enter="onStudioNameFilterEnter"
-                           :disabled="isStudioSearchDisabled" :placeholder="t('studio_name_placeholder')" class="filter-input">
+                           :placeholder="t('name_placeholder')" class="filter-input">
                 </div>
 
                 <!-- 恢复统一符号按钮 -->
@@ -370,7 +393,7 @@
                     <div class="attr-legend-group-title" v-if="group.label">{{ group.label }}</div>
                     <div class="attr-legend-grid">
                         <div class="attr-legend-item" v-for="item in group.items" :key="item.key">
-                            <img class="attr-legend-icon" :src="item.icon" :alt="item.label">
+                            <img class="attr-legend-icon" :class="{ 'is-lite': item.lite }" :src="item.icon" :alt="item.label">
                             <span class="attr-legend-label">{{ item.label }}</span>
                         </div>
                     </div>
