@@ -554,7 +554,6 @@
             // 英文国籍名以国籍图例（attributeDisplay.js）为单一数据源；
             // 图例未收录的值用全称兜底（CSV 里的 Natl_EN 多为 CHN/JPN 这类缩写）。
             const NATL_EN_FALLBACK = {
-                '英国/德国': 'UK / Germany',
                 '印度': 'India'
             };
 

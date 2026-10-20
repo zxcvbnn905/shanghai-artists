@@ -193,7 +193,6 @@ function refreshOpenSidebarForManifest() {
 
             // 英文国籍名与国籍图例保持一致；图例未收录的值用全称兜底
             const NATL_EN_FALLBACK = {
-                '英国/德国': 'UK / Germany',
                 '奥匈帝国': 'Austria-Hungary',
                 '印度': 'India'
             };
