@@ -1,5 +1,5 @@
-// 性别模式下 zoom 小于该值时使用 lite 简化图标（地图标点与图例共用）
-window.GENDER_LITE_MAX_ZOOM = 19;
+// 性别/国籍属性模式下 zoom 小于该值时使用 lite 简化图标（地图标点与图例共用）
+window.ATTR_LITE_MAX_ZOOM = 19;
 
 window.GlobalStore = Vue.reactive({
     isSidebarVisible: false,

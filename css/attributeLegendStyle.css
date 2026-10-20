@@ -50,6 +50,27 @@
     padding: 6.84px;
 }
 
+/* 自定义字体墨迹在行盒内偏上，按语言下移标签，使文字与图标中心同轴；
+   取值兼顾性别/国籍/籍贯三种图例的字形差异 */
+body[data-lang="zh"] .attr-legend-label {
+    position: relative;
+    top: 0.2em;
+}
+
+body[data-lang="en"] .attr-legend-label {
+    position: relative;
+    top: 0.05em;
+}
+
+/* 国籍图例标签字号更小（11px）、字形不同，单独微调至图标中心 */
+body[data-lang="zh"] #attr-legend.legend-nationality .attr-legend-label {
+    top: 0.32em;
+}
+
+body[data-lang="en"] #attr-legend.legend-nationality .attr-legend-label {
+    top: 0.15em;
+}
+
 .attr-legend-label {
     font-size: 12px;
     color: #5a4a3a;
@@ -93,9 +114,14 @@
     line-height: 1.25;
 }
 
-/* 籍贯：背景 352×639，185px 宽对应自然高约 336px，与 10 项单列内容量吻合；英文组合名可换行 */
+/* 籍贯：分类细化到省级（22 项），两列展示 */
 #attr-legend.legend-origin {
-    width: 185px;
+    width: 240px;
+}
+
+#attr-legend.legend-origin .attr-legend-grid {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 6px;
 }
 
 #attr-legend.legend-origin .attr-legend-label {
@@ -112,11 +138,11 @@
     }
 
     #attr-legend.legend-nationality {
-        width: 170px;
+        width: 240px;
     }
 
     #attr-legend.legend-origin {
-        width: 140px;
+        width: 190px;
     }
 
     .attr-legend-title {

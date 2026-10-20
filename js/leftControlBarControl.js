@@ -160,6 +160,10 @@
                         }
                         setLayerVis('density-heatmap', true);
                     }
+                    // 密度图开关同步道路名颜色（开启时恢复原色，关闭时统一灰绿）
+                    if (typeof window.applyRoadLabelColor === 'function') {
+                        window.applyRoadLabelColor();
+                    }
                 } catch(e) { console.error('applyLayerMode error:', e); }
             };
 
@@ -265,12 +269,23 @@
                     return true;
                 });
 
+                // 按姓名搜索时保留成员姓名命中的 studio（全部类型与工作室类型）
+                if (nameQuery) {
+                    filteredStudios = filteredStudios.filter(s =>
+                        (s._artistEntries || []).some(e => {
+                            const cn = (e.name_cn || '').toLowerCase();
+                            const en = (e.name_en || '').toLowerCase();
+                            if (cn.includes(nameQuery) || en.includes(nameQuery)) return true;
+                            return !!(normNameQuery && normalizeEnName(e.name_en).includes(normNameQuery));
+                        })
+                    );
+                }
+
                 // 地点类型：住宅只显示艺术家，工作室只显示 studio；
-                // 按姓名搜索时仍以艺术家为焦点，全部类型下隐藏 studio
+                // 全部类型下，姓名命中的艺术家与其所在 studio 一并显示
                 const placeType = filters.PlaceType;
                 const visibleArtists = placeType === 'studio' ? [] : filteredArtists;
-                let visibleStudios = placeType === 'residence' ? [] : filteredStudios;
-                if (placeType === 'all' && nameQuery) visibleStudios = [];
+                const visibleStudios = placeType === 'residence' ? [] : filteredStudios;
                 window.currentFilteredStudios = visibleStudios;
 
                 // 当前选中的艺术家/工作室被筛掉时，关闭侧栏并清理选中态
@@ -503,36 +518,15 @@
                 }
             };
 
-            // 籍贯筛选的省级归类表（按声明顺序展示；不详/其他置底）。
-            // "今属上海"约定与 attributeDisplay.js 中 origin 显示归组保持一致（当前按民国区划：
-            // 含"上海"字样→上海，旧江苏县名→江苏）。若切换那边上海组的 keywords 开关，
-            // 需同步把下方江苏条目中的县名关键词（松江…浦东）移入上海条目。
-            const ORIGIN_PROVINCES = [
-                { zh: '上海', en: 'Shanghai', kw: ['上海'] },
-                { zh: '江苏', en: 'Jiangsu',  kw: ['江苏', '吴县', '南通',
-                    '松江', '淞江', '崇明', '川沙', '青浦', '宝山', '南汇', '金山', '嘉定', '奉贤', '华亭', '浦东'] },
-                { zh: '浙江', en: 'Zhejiang', kw: ['浙江', '杭州'] },
-                { zh: '安徽', en: 'Anhui',    kw: ['安徽'] },
-                { zh: '广东', en: 'Guangdong', kw: ['广东'] },
-                { zh: '福建', en: 'Fujian',   kw: ['福建'] },
-                { zh: '湖南', en: 'Hunan',    kw: ['湖南'] },
-                { zh: '湖北', en: 'Hubei',    kw: ['湖北'] },
-                { zh: '四川', en: 'Sichuan',  kw: ['四川'] },
-                { zh: '江西', en: 'Jiangxi',  kw: ['江西'] },
-                { zh: '山东', en: 'Shandong', kw: ['山东'] },
-                { zh: '山西', en: 'Shanxi',   kw: ['山西'] },
-                { zh: '陕西', en: 'Shaanxi',  kw: ['陕西'] },
-                { zh: '河南', en: 'Henan',    kw: ['河南'] },
-                { zh: '河北', en: 'Hebei',    kw: ['河北'] },
-                { zh: '广西', en: 'Guangxi',  kw: ['广西'] },
-                { zh: '贵州', en: 'Guizhou',  kw: ['贵州'] },
-                { zh: '云南', en: 'Yunnan',   kw: ['云南'] },
-                { zh: '辽宁', en: 'Liaoning', kw: ['辽宁', '辽西'] },
-                { zh: '台湾', en: 'Taiwan',   kw: ['台湾'] },
-                { zh: '天津', en: 'Tianjin',  kw: ['天津'] },
-                { zh: '不详', en: 'Unknown',  kw: ['不详'] },
-                { zh: '其他', en: 'Others',   kw: [] }
-            ];
+            // 籍贯筛选的省级归类以属性图例配置为单一数据源，保证筛选与显示归组一致；
+            // 末尾保留「其他」兜底项，用于无匹配关键词的值（当前数据量为 0）
+            const ORIGIN_PROVINCES = ((window.AttrDisplayConfig && window.AttrDisplayConfig.origin)
+                ? window.AttrDisplayConfig.origin.categories.map(c => ({
+                      zh: c.key,
+                      en: c.label.en,
+                      kw: c.keywords || []
+                  }))
+                : []).concat([{ zh: '其他', en: 'Others', kw: [] }]);
 
             const getOriginProvince = (a) => {
                 const o = (a.Origin_CH || '').trim();

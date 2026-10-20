@@ -348,7 +348,10 @@ body[data-lang="zh"] .natl-trigger-text {
 .filter-input {
     flex: 1;
     min-width: 80px;
+    /* 与下拉框一致：固定高度 + border-box，给中文字形留出完整内容区 */
+    height: 28px;
     padding: 6px 10px;
+    box-sizing: border-box;
     border: 1px solid #d0c8c0;
     border-radius: 6px;
     font-size: 13px;
@@ -364,6 +367,13 @@ body[data-lang="zh"] .natl-trigger-text {
 
 .filter-input::placeholder {
     color: #bbb;
+}
+
+/* 中文占位文字：中文字体下降部为 0，原生 input 会把提示文字排得偏上；
+   只下移占位符，输入文字与光标仍保持行盒居中 */
+body[data-lang="zh"] .filter-input::placeholder {
+    position: relative;
+    top: 2px;
 }
 
 .filter-input:disabled {
@@ -386,9 +396,13 @@ body[data-lang="zh"] .natl-trigger-text {
     white-space: nowrap;
 }
 
-.attr-display-btn:hover:not(:disabled) {
-    background: #f0e8dc;
-    border-color: #C0A080;
+/* 悬浮态仅在支持悬浮的设备生效，避免移动端点击后 hover 黏住；
+   选中按钮不再触发 hover，保证只有选中/未选中两态 */
+@media (hover: hover) and (pointer: fine) {
+    .attr-display-btn:hover:not(:disabled):not(.active) {
+        background: #f0e8dc;
+        border-color: #C0A080;
+    }
 }
 
 .attr-display-btn:disabled {

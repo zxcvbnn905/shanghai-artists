@@ -5,8 +5,8 @@ const DEFAULT_LITE_COLOR = '#8e0000'; // 与 stamp_CN/EN 印章主色一致
 function isLiteMarkerMode() {
     if (!window.map) return false;
     const mode = window.GlobalStore ? window.GlobalStore.attributeDisplayMode : null;
-    return (mode === null || mode === 'gender') &&
-        window.map.getZoom() < window.GENDER_LITE_MAX_ZOOM;
+    return (mode === null || mode === 'gender' || mode === 'nationality' || mode === 'origin') &&
+        window.map.getZoom() < window.ATTR_LITE_MAX_ZOOM;
 }
 
 function updateMarkersOnScreen() {
@@ -1306,17 +1306,17 @@ window.updateAllMarkerStyles = function() {
     }
 };
 
-// zoom 跨过阈值时批量刷新默认态/性别 lite 标点，其余缩放不触发重绘
+// zoom 跨过阈值时批量刷新默认态/性别/国籍/籍贯 lite 标点，其余缩放不触发重绘
 let _markerLiteLast = null;
 window.syncZoomDependentMarkerStyles = function() {
     if (!window.map) return;
     const zoom = window.map.getZoom();
     if (window.GlobalStore) window.GlobalStore.mapZoom = zoom;
-    const lite = zoom < window.GENDER_LITE_MAX_ZOOM;
+    const lite = zoom < window.ATTR_LITE_MAX_ZOOM;
     if (lite === _markerLiteLast) return;
     _markerLiteLast = lite;
     const mode = window.GlobalStore ? window.GlobalStore.attributeDisplayMode : null;
-    if ((mode === null || mode === 'gender') &&
+    if ((mode === null || mode === 'gender' || mode === 'nationality' || mode === 'origin') &&
         typeof window.updateAllMarkerStyles === 'function') {
         window.updateAllMarkerStyles();
     }

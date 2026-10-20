@@ -219,6 +219,43 @@ function applyRoadLabelFont(lang) {
     });
 }
 
+// 历史地图：密度图关闭时道路名统一改为 rgb(156,155,141)，开启时恢复样式原色。
+// 现代地图（map_3）保持样式原色，不受密度图影响。
+var ROAD_LABEL_COLOR_NO_DENSITY = 'rgb(156, 155, 141)';
+var _roadLabelColorOriginals = {};
+
+function applyRoadLabelColor() {
+    if (window.GlobalStore && window.GlobalStore.currentStyle === 'map_3') return;
+
+    var style;
+    try {
+        style = window.map.getStyle();
+    } catch (e) {
+        return;
+    }
+    if (!style || !style.layers) return;
+
+    var cacheKey = window.currentMapStyleUrl || 'default';
+    var originals = _roadLabelColorOriginals[cacheKey];
+    if (!originals) {
+        originals = _roadLabelColorOriginals[cacheKey] = {};
+    }
+    var densityOn = !!(window.GlobalStore && window.GlobalStore.activeLayerMode === 'density');
+
+    style.layers.forEach(function(layer) {
+        if (!isRoadLabelLayer(layer)) return;
+        if (!(layer.id in originals)) {
+            originals[layer.id] = (layer.paint && layer.paint['text-color'] !== undefined)
+                ? layer.paint['text-color'] : null;
+        }
+        var target = densityOn ? originals[layer.id] : ROAD_LABEL_COLOR_NO_DENSITY;
+        try {
+            window.map.setPaintProperty(layer.id, 'text-color', target);
+        } catch (e) {}
+    });
+}
+window.applyRoadLabelColor = applyRoadLabelColor;
+
 window.updateMapLanguage = function(lang) {
     const languageCode = lang === 'zh' ? 'zh-Hans' : 'en';
 
@@ -257,6 +294,7 @@ window.updateMapLanguage = function(lang) {
     });
 
     applyRoadLabelFont(lang);
+    applyRoadLabelColor();
 };
 
 window.map.on('load', async () => {
