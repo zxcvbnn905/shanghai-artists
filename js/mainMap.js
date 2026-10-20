@@ -38,9 +38,9 @@ if (typeof mapboxgl === 'undefined') {
     throw new Error('Mapbox GL JS is not available');
 }
 
-// Mapbox 访问令牌由后端在登录时下发、存入 sessionStorage（见 js/auth.js），不硬编码在仓库里。
-// 用户必经 index.html 的密码门，所以这里同步读取即可。
-mapboxgl.accessToken = (function () { try { return sessionStorage.getItem('artist_map_mapbox_token') || ''; } catch (e) { return ''; } })();
+// 生产：Mapbox 访问令牌由后端在登录时下发、存入 sessionStorage（见 js/auth.js）。
+// 开发：Vite dev server 注入不受 URL 限制的公开 token（见 vite.config.js），优先使用。
+mapboxgl.accessToken = window.__DEV_MAPBOX_TOKEN__ || (function () { try { return sessionStorage.getItem('artist_map_mapbox_token') || ''; } catch (e) { return ''; } })();
 
 // 根据URL参数确定初始地图样式，避免加载后不必要的样式切换
 var _initParams = new URLSearchParams(window.location.search);
@@ -177,6 +177,48 @@ window.map.on('styledata', () => {
     }
 });
 
+// Mapbox 账户中已上传的青柯本悦宋字体名（map_3_en 样式的道路标签即用它）
+var ROAD_LABEL_FONT_EN = 'FZQingKeBenYueSongS-R-GB Regular';
+var ROAD_LABEL_FONT_FALLBACK = 'Arial Unicode MS Regular';
+var _roadLabelFontOriginals = {};
+
+function isRoadLabelLayer(layer) {
+    if (!layer || layer.type !== 'symbol') return false;
+    var id = layer.id;
+    return id.indexOf('road-label') === 0 ||
+        id === 'path-pedestrian-label' ||
+        /^shanghai-(1937|1947)-street-labels$/.test(id);
+}
+
+// 英文模式下把道路名换成与全站一致的青柯本悦宋；回到中文时还原样式自带字体
+function applyRoadLabelFont(lang) {
+    var style;
+    try {
+        style = window.map.getStyle();
+    } catch (e) {
+        return;
+    }
+    if (!style || !style.layers) return;
+
+    var cacheKey = window.currentMapStyleUrl || 'default';
+    var originals = _roadLabelFontOriginals[cacheKey];
+    if (!originals) {
+        originals = _roadLabelFontOriginals[cacheKey] = {};
+    }
+
+    style.layers.forEach(function(layer) {
+        if (!isRoadLabelLayer(layer)) return;
+        if (lang === 'en') {
+            if (!originals[layer.id] && layer.layout && layer.layout['text-font']) {
+                originals[layer.id] = layer.layout['text-font'];
+            }
+            window.map.setLayoutProperty(layer.id, 'text-font', [ROAD_LABEL_FONT_EN, ROAD_LABEL_FONT_FALLBACK]);
+        } else if (originals[layer.id]) {
+            window.map.setLayoutProperty(layer.id, 'text-font', originals[layer.id]);
+        }
+    });
+}
+
 window.updateMapLanguage = function(lang) {
     const languageCode = lang === 'zh' ? 'zh-Hans' : 'en';
 
@@ -213,6 +255,8 @@ window.updateMapLanguage = function(lang) {
             }
         }
     });
+
+    applyRoadLabelFont(lang);
 };
 
 window.map.on('load', async () => {

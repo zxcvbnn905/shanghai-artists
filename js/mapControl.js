@@ -1,5 +1,5 @@
-const LITE_MARKER_SIZE = 10;
-const LITE_MARKER_HOVER_SIZE = 16;
+const LITE_MARKER_SIZE = 8.33; // 原 10px 的 5/6
+const LITE_MARKER_HOVER_SIZE = 13.33; // 原 16px 的 5/6
 const DEFAULT_LITE_COLOR = '#8e0000'; // 与 stamp_CN/EN 印章主色一致
 
 function isLiteMarkerMode() {

@@ -135,11 +135,11 @@ body.migration-active .artist-marker:not(.selected-marker) {
     z-index: 1000 !important;
 }
 
-/* lite 标点视觉仍为 10px，透明热区扩到 24px，便于悬浮与移动端点击 */
+/* lite 标点透明热区固定为 24px，不随视觉尺寸缩放 */
 .artist-marker.is-lite::after {
     content: '';
     position: absolute;
-    inset: -7px;
+    inset: calc((24px - 100%) / -2);
 }
 
 .marker-action-menu {
