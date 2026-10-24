@@ -8,7 +8,11 @@
         lineColor: '#f5eede',
         lineWidth: 22,
         lineOpacity: 0.8,
-        snapTolerance: 100,
+        snapTolerance: 100,        // 起始吸附容差（米）
+        snapToleranceStep: 50,     // 每档放宽的步长（米）
+        snapToleranceMinCap: 200,  // 上限的最小值（米）：直线距离更短时仍放宽到该值
+        approachSnapTolerance: 200, // 路网外地址沿直线推进时，吸附道路的距离上限（米）
+        approachStepMeters: 50,     // 路网外地址沿直线推进的采样步长（米）
         pathSimplifyTolerance: 0.00015,  // 约 15 米（经纬度单位），消除路径锯齿
         revealSpeed: 0.8,                 // 渐显速度（经纬度/秒），值越小越慢
         migrationDimCanvasId: 'migration-dim-canvas',
@@ -1414,6 +1418,141 @@
         State.modernAnimId = requestAnimationFrame(frame);
     }
 
+    // 逐级放宽吸附容差寻路；上限为直线距离且不低于 200m
+    function routeWithLadder(startCoord, endCoord) {
+        var RB = window.RoadGraphBuilder;
+        var straightDist = RB.haversineDist(startCoord, endCoord);
+        var maxTolerance = Math.max(Config.snapToleranceMinCap, straightDist);
+        for (var tol = Config.snapTolerance; ; tol = Math.min(maxTolerance, tol + Config.snapToleranceStep)) {
+            var path = null;
+            try {
+                path = RB.findShortestPath(window.roadGraph, startCoord, endCoord, tol);
+            } catch (e) {
+                path = null;
+            }
+            if (path || tol >= maxTolerance) return path;
+        }
+    }
+
+    // 路网连通分量缓存（按当前路网图缓存，换年份自动重建）
+    function getRouteComponents() {
+        var graph = window.roadGraph;
+        if (!graph) return null;
+        if (graph._routeComponentData) return graph._routeComponentData;
+
+        var comp = new Map();
+        var ids = Array.from(graph.nodes.keys());
+        var cid = 0;
+        for (var i = 0; i < ids.length; i++) {
+            var startId = ids[i];
+            if (comp.has(startId)) continue;
+            var stack = [startId];
+            comp.set(startId, cid);
+            while (stack.length) {
+                var u = stack.pop();
+                var neighbors = graph.adjacency.get(u) || [];
+                for (var j = 0; j < neighbors.length; j++) {
+                    var v = neighbors[j].to;
+                    if (!comp.has(v)) {
+                        comp.set(v, cid);
+                        stack.push(v);
+                    }
+                }
+            }
+            cid++;
+        }
+        graph._routeComponentData = { comp: comp };
+        return graph._routeComponentData;
+    }
+
+    function segmentComponents(segId) {
+        var graph = window.roadGraph;
+        var data = getRouteComponents();
+        if (!data || !graph.segments[segId]) return [];
+        var key = function(c) { return c[0].toFixed(6) + ',' + c[1].toFixed(6); };
+        var seg = graph.segments[segId];
+        var comps = [];
+        var ends = [seg.a, seg.b];
+        for (var i = 0; i < ends.length; i++) {
+            var nodeId = graph.coordToNode.get(key(ends[i]));
+            if (nodeId === undefined) continue;
+            var cid = data.comp.get(nodeId);
+            if (cid !== undefined && comps.indexOf(cid) === -1) comps.push(cid);
+        }
+        return comps;
+    }
+
+    // 沿 from→to 直线推进，返回第一个周边 200m 内有道路的采样点；
+    // 传入 targetComps 时跳过与目标路网不连通的孤立碎片
+    function findApproachPoint(fromCoord, toCoord, targetComps) {
+        var RB = window.RoadGraphBuilder;
+        var total = RB.haversineDist(fromCoord, toCoord);
+        if (!(total > 0)) return null;
+        var steps = Math.ceil(total / Config.approachStepMeters);
+        for (var i = 0; i <= steps; i++) {
+            var along = Math.min(i * Config.approachStepMeters, total);
+            var t = along / total;
+            var p = [
+                fromCoord[0] + (toCoord[0] - fromCoord[0]) * t,
+                fromCoord[1] + (toCoord[1] - fromCoord[1]) * t
+            ];
+            var cp = RB.findClosestPointOnRoad(window.roadGraph, p);
+            if (!cp || cp.dist > Config.approachSnapTolerance) continue;
+
+            var comps = segmentComponents(cp.segId);
+            if (targetComps && !comps.some(function(cid) { return targetComps.indexOf(cid) !== -1; })) {
+                continue;
+            }
+            return { coord: p, along: along, comps: comps };
+        }
+        return null;
+    }
+
+    // 路网外地址：先沿直线推进到道路附近，再沿路网寻路；两端都在路网外时两侧同时推进
+    function findPathWithApproach(startCoord, endCoord) {
+        var RB = window.RoadGraphBuilder;
+        var startPt = RB.findClosestPointOnRoad(window.roadGraph, startCoord);
+        var endPt = RB.findClosestPointOnRoad(window.roadGraph, endCoord);
+        var startOff = !startPt || startPt.dist > Config.approachSnapTolerance;
+        var endOff = !endPt || endPt.dist > Config.approachSnapTolerance;
+        if (!startOff && !endOff) return null;
+
+        var startApproach = null;
+        var endApproach = null;
+        if (startOff && endOff) {
+            startApproach = findApproachPoint(startCoord, endCoord, null);
+            if (!startApproach) return null;
+            endApproach = findApproachPoint(endCoord, startCoord, startApproach.comps);
+            if (!endApproach) {
+                endApproach = findApproachPoint(endCoord, startCoord, null);
+                if (!endApproach) return null;
+                startApproach = findApproachPoint(startCoord, endCoord, endApproach.comps);
+                if (!startApproach) return null;
+            }
+        } else if (startOff) {
+            startApproach = findApproachPoint(startCoord, endCoord, segmentComponents(endPt.segId));
+            if (!startApproach) return null;
+        } else {
+            endApproach = findApproachPoint(endCoord, startCoord, segmentComponents(startPt.segId));
+            if (!endApproach) return null;
+        }
+        if (startApproach && endApproach) {
+            var total = RB.haversineDist(startCoord, endCoord);
+            if (startApproach.along + endApproach.along >= total) return null;
+        }
+
+        var routeStart = startApproach ? startApproach.coord : startCoord;
+        var routeEnd = endApproach ? endApproach.coord : endCoord;
+        var roadPath = routeWithLadder(routeStart, routeEnd);
+        if (!roadPath) return null;
+
+        var fullPath = [];
+        if (startApproach) fullPath.push(startCoord);
+        for (var i = 0; i < roadPath.length; i++) fullPath.push(roadPath[i]);
+        if (endApproach) fullPath.push(endCoord);
+        return fullPath;
+    }
+
     function drawArrowConnections(artists) {
         if (!window.map) return;
         
@@ -1485,11 +1624,10 @@
             let path = null;
             if (window.roadGraph && window.RoadGraphBuilder && window.RoadGraphBuilder.findShortestPath) {
                 try {
-                    path = window.RoadGraphBuilder.findShortestPath(
-                        window.roadGraph, conn.start.coords, conn.end.coords, Config.snapTolerance
-                    );
+                    path = routeWithLadder(conn.start.coords, conn.end.coords);
+                    if (!path) path = findPathWithApproach(conn.start.coords, conn.end.coords);
                 } catch(e) {
-                    // 寻路失败，退回直线
+                    path = null;
                 }
             }
             if (path && path.length >= 2) {
